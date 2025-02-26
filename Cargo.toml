@@ -1,0 +1,47 @@
+[package]
+name = "zavora-trading-engine"
+version = "0.1.0"
+edition = "2021"
+authors = ["James Karanja Maina<james.karanja@zavora.ai>"]
+description = "High-performance trading engine implemented in Rust"
+
+[workspace]
+members = [
+    "matching-engine",
+    "account-service",
+    "market-data",
+    "api-gateway",
+    "common",
+    "trading-engine"
+]
+resolver = "2"
+
+[workspace.dependencies]
+tokio = { version = "1.36.0", features = ["full"] }
+axum = "0.7.4"
+serde = { version = "1.0.193", features = ["derive"] }
+serde_json = "1.0.108"
+tracing = "0.1.40"
+tracing-subscriber = { version = "0.3.18", features = ["env-filter"] }
+sqlx = { version = "0.7.3", features = ["runtime-tokio-rustls", "postgres", "chrono", "uuid", "json"] }
+thiserror = "1.0.56"
+uuid = { version = "1.6.1", features = ["v4", "serde"] }
+chrono = { version = "0.4.31", features = ["serde"] }
+rust_decimal = { version = "1.33.1", features = ["serde"] }
+rust_decimal_macros = "1.33.1"
+clap = { version = "4.4.11", features = ["derive"] }
+dotenv = "0.15.0"
+
+# Testing dependencies
+[dev-dependencies]
+lazy_static = "1.4"
+
+# A virtual metapackage for running tests
+[lib]
+name = "zavora_tests"
+path = "src/lib.rs"
+
+# Making the root package able to run integration tests
+[[bin]]
+name = "zavora"
+path = "src/main.rs"
