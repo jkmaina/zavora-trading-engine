@@ -1,24 +1,22 @@
-use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
-use std::sync::atomic::{AtomicU64, Ordering};
 
 use chrono::Utc;
 use common::decimal::{Price, Quantity};
 use common::error::{Error, Result};
-use common::model::order::{Order, OrderStatus, Side, OrderType, TimeInForce};
+use common::model::order::{Order, Status, Side, OrderType, TimeInForce};
 use common::model::trade::Trade;
 use dashmap::DashMap;
 use tracing::{debug, info};
 use uuid::Uuid;
 
-use crate::order_book::OrderBook;
+use crate::order_book::{OrderBook, OrderBookSide};
 
 /// Result of a matching operation
 #[derive(Debug, Default)]
 pub struct MatchingResult {
     /// The updated taker order
     pub taker_order: Option<Arc<Order>>,
-    /// Maker orders that were matched against
+    /// Maker orders that were matched
     pub maker_orders: Vec<Arc<Order>>,
     /// Trades that were generated
     pub trades: Vec<Trade>,
@@ -26,74 +24,143 @@ pub struct MatchingResult {
 
 /// The matching engine responsible for processing orders and generating trades
 pub struct MatchingEngine {
-    /// Map of market symbol to order book
-    order_books: HashMap<String, Arc<RwLock<OrderBook>>>,
-    /// Map of order ID to order
-    orders: DashMap<Uuid, Arc<Order>>,
-    /// Sequence number for order processing
-    sequence: AtomicU64,
+    /// Map of market symbols to order books
+    order_books: DashMap<String, Arc<RwLock<OrderBook>>>,
 }
 
 impl MatchingEngine {
     /// Create a new matching engine
     pub fn new() -> Self {
         Self {
-            order_books: HashMap::new(),
-            orders: DashMap::new(),
-            sequence: AtomicU64::new(1),
+            order_books: DashMap::new(),
         }
     }
+    
     /// Register a new market
-    pub fn register_market(&mut self, market: String) {
-        if !self.order_books.contains_key(&market) {
-            info!("Registering market: {}", market);
-            let order_book = OrderBook::new(market.clone());
-            self.order_books.insert(market, Arc::new(RwLock::new(order_book)));
-        }
-    }
-    
-    
-    /// Get an order book for a market
-    fn get_order_book(&self, market: &str) -> Result<Arc<RwLock<OrderBook>>> {
-        self.order_books
-            .get(market)
-            .cloned()
-            .ok_or_else(|| Error::Internal(format!("Market not found: {}", market)))
+    pub fn register_market(&self, market: String) {
+        info!("Registering market: {}", market);
+        self.order_books.insert(market.clone(), Arc::new(RwLock::new(OrderBook::new(market))));
     }
     
     /// Get an order by ID
     pub fn get_order(&self, order_id: Uuid) -> Option<Arc<Order>> {
-        self.orders.get(&order_id).map(|o| o.clone())
+        // Search in all order books
+        for book_entry in self.order_books.iter() {
+            let book = book_entry.value().read().unwrap();
+            
+            // For now, we'll scan the bids and asks for the order
+            // In a real system, we'd have a global order map for efficient lookup
+            let bids = book.bids().price_levels(100);
+            for (price, _) in bids {
+                if let Some(orders) = book.bids().orders_at(price) {
+                    if let Some(order) = orders.iter().find(|o| o.id == order_id) {
+                        return Some(order.clone());
+                    }
+                }
+            }
+            
+            let asks = book.asks().get_price_levels(100);
+            for (price, _) in asks {
+                if let Some(orders) = book.asks().orders_at(price) {
+                    if let Some(order) = orders.iter().find(|o| o.id == order_id) {
+                        return Some(order.clone());
+                    }
+                }
+            }
+        }
+        
+        None
     }
     
-    /// Place a new order
-    pub fn place_order(&self, order: Order) -> Result<MatchingResult> {
-        let market = order.market.clone();
-        let order_book = self.get_order_book(&market)?;
+    /// Cancel an order
+    pub fn cancel_order(&self, order_id: Uuid) -> Result<Arc<Order>> {
+        // First, find the order
+        let original_order = match self.get_order(order_id) {
+            Some(order) => order,
+            None => return Err(Error::OrderNotFound(format!("Order not found: {}", order_id))),
+        };
         
-        // Sequence number for this order
-        let _seq = self.sequence.fetch_add(1, Ordering::SeqCst);
+        // Find the order book for this market
+        if let Some(book_entry) = self.order_books.get(&original_order.market) {
+            let mut book = book_entry.write().unwrap();
+            
+            // Remove the order from the book
+            if let Some(order) = book.remove_order(order_id, original_order.side) {
+                // Create a canceled version of the order
+                let canceled_order = Order {
+                    status: Status::Cancelled,
+                    updated_at: Utc::now(),
+                    ..(*order).clone()
+                };
+                
+                return Ok(Arc::new(canceled_order));
+            }
+        }
         
-        // Clone and wrap the order for thread safety
-        let order = Arc::new(order);
-        
-        // Store order in our index
-        self.orders.insert(order.id, order.clone());
-        
-        // Process the order based on type
-        match order.order_type {
-            OrderType::Market => self.execute_market_order(order, order_book),
-            OrderType::Limit => self.execute_limit_order(order, order_book),
+        Err(Error::OrderNotFound(format!("Order not found in book: {}", order_id)))
+    }
+    
+    /// Get market depth
+    pub fn get_market_depth(&self, market: &str, limit: usize) -> Result<(Vec<(Price, Quantity)>, Vec<(Price, Quantity)>)> {
+        if let Some(book_entry) = self.order_books.get(market) {
+            let book = book_entry.read().unwrap();
+            
+            // Get bid and ask levels
+            let bids = book.bids().price_levels(limit);
+            let asks = book.asks().price_levels(limit);
+            
+            Ok((bids, asks))
+        } else {
+            Err(Error::Internal(format!("Market not found: {}", market)))
         }
     }
     
-    /// Execute a market order (immediate execution)
+    /// Process an incoming order
+    pub fn place_order(&self, order: Order) -> Result<MatchingResult> {
+        // Check if we have an order book for this market
+        let order_book = match self.order_books.get(&order.market) {
+            Some(ob) => ob.clone(),
+            None => {
+                return Err(Error::Internal(format!("Market not found: {}", order.market)));
+            }
+        };
+        
+        // Clone the order into an Arc for thread-safe sharing
+        let order = Arc::new(order);
+        
+        // Execute the order based on type
+        match order.order_type {
+            OrderType::Market => {
+                debug!("Processing market order: {}", order.id);
+                self.execute_market_order(order, order_book)
+            },
+            OrderType::Limit => {
+                debug!("Processing limit order: {}", order.id);
+                self.execute_limit_order(order, order_book)
+            }
+        }
+    }
+    
+    /// Execute a market order
     fn execute_market_order(&self, order: Arc<Order>, order_book: Arc<RwLock<OrderBook>>) -> Result<MatchingResult> {
         let side = order.side;
         let mut result = MatchingResult::default();
         
         // Get exclusive access to the order book
         let mut order_book = order_book.write().unwrap();
+        
+        // Check if the order book is empty on the opposite side
+        let is_empty = match side {
+            Side::Buy => order_book.best_ask().is_none(),
+            Side::Sell => order_book.best_bid().is_none(),
+        };
+        
+        if is_empty {
+            return Err(Error::Internal(format!(
+                "Cannot execute market {} order, no liquidity", 
+                if side == Side::Buy { "buy" } else { "sell" }
+            )));
+        }
         
         // Match against the opposite side of the book
         let (matched_order, matched_makers, trades) = match side {
@@ -199,95 +266,77 @@ impl MatchingEngine {
                 None => break, // No more asks to match against
             };
             
-            // For market orders or if the limit price is acceptable
-            if taker.order_type == OrderType::Market || 
-               taker.price.map_or(false, |p| p >= best_ask) {
-                // Get orders at this price level
-                let asks = match order_book.asks().orders_at(best_ask) {
-                    Some(orders) => orders.clone(), // Clone to avoid borrow checker issues
-                    None => break, // This shouldn't happen but just in case
-                };
-                
-                // Match against each order at this price level
-                for maker in asks {
-                    if taker_quantity <= Quantity::ZERO {
-                        break;
-                    }
-                    
-                    // Skip orders that are already filled
-                    if maker.is_filled() {
-                        continue;
-                    }
-                    
-                    // Calculate match quantity
-                    let match_quantity = taker_quantity.min(maker.remaining_quantity);
-                    
-                    // Create the trade
-                    let trade = Trade::new(
-                        taker.market.clone(),
-                        best_ask,
-                        match_quantity,
-                        taker.id,
-                        maker.id,
-                        taker.user_id,
-                        maker.user_id,
-                        Side::Buy, // Taker is buying, so taker side is Buy
-                    );
-                    
-                    // Update taker
-                    taker_quantity -= match_quantity;
-                    taker_clone.remaining_quantity = taker_quantity;
-                    taker_clone.filled_quantity += match_quantity;
-                    
-                    // Calculate new average fill price
-                    let total_filled_amount = taker_clone.average_fill_price
-                        .map_or(Quantity::ZERO, |p| p * taker_clone.filled_quantity);
-                    let match_amount = best_ask * match_quantity;
-                    let new_total_amount = total_filled_amount + match_amount;
-                    taker_clone.average_fill_price = Some(new_total_amount / taker_clone.filled_quantity);
-                    
-                    // Update maker (in a real system, this would be persisted)
-                    // For now we just track them for the result
-                    matched_makers.push(maker.clone());
-                    
-                    // Add the trade to the result
-                    trades.push(trade);
-                    
-                    // Update the order book's last price
-                    order_book.set_last_price(best_ask);
-                    
-                    // Remove filled maker orders from the book
-                    if maker.remaining_quantity == match_quantity {
-                        order_book.remove_order(maker.id, Side::Sell);
-                    }
-                    
-                    // Check if taker is filled
-                    if taker_quantity == Quantity::ZERO {
-                        taker_filled = true;
-                        break;
-                    }
+            // For limit orders, check if the price is acceptable
+            if taker.order_type == OrderType::Limit {
+                let limit_price = taker.price.unwrap();
+                if limit_price < best_ask {
+                    break; // Best ask is higher than our limit price
                 }
-            } else {
-                // Limit price not acceptable
-                break;
+            }
+            
+            // Get the first maker order at the best ask price
+            if let Some(maker) = order_book.get_first_ask_order(best_ask) {
+                // Calculate the match quantity
+                let match_quantity = Quantity::min(taker_quantity, maker.remaining_quantity);
+                
+                // Create a trade
+                let trade = self.create_trade(
+                    best_ask,
+                    match_quantity,
+                    &taker.market,
+                    taker.id,
+                    maker.id,
+                    taker.user_id,
+                    maker.user_id,
+                    Side::Buy, // Taker is buying, so taker side is Buy
+                );
+                
+                // Update taker
+                taker_quantity -= match_quantity;
+                taker_clone.remaining_quantity = taker_quantity;
+                taker_clone.filled_quantity += match_quantity;
+                
+                // Calculate new average fill price
+                let total_filled_amount = taker_clone.average_fill_price
+                    .map_or(Quantity::ZERO, |p| p * taker_clone.filled_quantity);
+                let match_amount = best_ask * match_quantity;
+                let new_total_amount = total_filled_amount + match_amount;
+                taker_clone.average_fill_price = Some(new_total_amount / taker_clone.filled_quantity);
+                
+                // Update maker (in a real system, this would be persisted)
+                // For now we just track them for the result
+                matched_makers.push(maker.clone());
+                
+                // Add the trade to the result
+                trades.push(trade);
+                
+                // Update the order book's last price
+                order_book.set_last_price(best_ask);
+                
+                // Remove filled maker orders from the book
+                if maker.remaining_quantity == match_quantity {
+                    order_book.remove_order(maker.id, Side::Sell);
+                }
+                
+                // Check if taker is filled
+                if taker_quantity == Quantity::ZERO {
+                    taker_filled = true;
+                    break;
+                }
             }
         }
         
         // Update taker status
         if taker_filled {
-            taker_clone.status = OrderStatus::Filled;
+            taker_clone.status = Status::Filled;
         } else if taker_clone.filled_quantity > Quantity::ZERO {
-            taker_clone.status = OrderStatus::PartiallyFilled;
+            taker_clone.status = Status::PartiallyFilled;
         }
+        
         taker_clone.updated_at = Utc::now();
         
-        // Return the result
-        let updated_taker = Arc::new(taker_clone);
-        
-        // Update the order in our index
-        self.orders.insert(updated_taker.id, updated_taker.clone());
-        
-        (Some(updated_taker), matched_makers, trades)
+        // Return updated taker order and trades
+        (Some(Arc::new(taker_clone)), matched_makers, trades)
     }
     
     /// Match an order against the bid side of the book
@@ -319,139 +368,103 @@ impl MatchingEngine {
                 None => break, // No more bids to match against
             };
             
-            // For market orders or if the limit price is acceptable
-            if taker.order_type == OrderType::Market || 
-               taker.price.map_or(false, |p| p <= best_bid) {
-                // Get orders at this price level
-                let bids = match order_book.bids().orders_at(best_bid) {
-                    Some(orders) => orders.clone(), // Clone to avoid borrow checker issues
-                    None => break, // This shouldn't happen but just in case
-                };
-                
-                // Match against each order at this price level
-                for maker in bids {
-                    if taker_quantity <= Quantity::ZERO {
-                        break;
-                    }
-                    
-                    // Skip orders that are already filled
-                    if maker.is_filled() {
-                        continue;
-                    }
-                    
-                    // Calculate match quantity
-                    let match_quantity = taker_quantity.min(maker.remaining_quantity);
-                    
-                    // Create the trade
-                    let trade = Trade::new(
-                        taker.market.clone(),
-                        best_bid,
-                        match_quantity,
-                        maker.id,
-                        taker.id,
-                        maker.user_id,
-                        taker.user_id,
-                        Side::Sell, // Taker is selling, so taker side is Sell
-                    );
-                    
-                    // Update taker
-                    taker_quantity -= match_quantity;
-                    taker_clone.remaining_quantity = taker_quantity;
-                    taker_clone.filled_quantity += match_quantity;
-                    
-                    // Calculate new average fill price
-                    let total_filled_amount = taker_clone.average_fill_price
-                        .map_or(Quantity::ZERO, |p| p * taker_clone.filled_quantity);
-                    let match_amount = best_bid * match_quantity;
-                    let new_total_amount = total_filled_amount + match_amount;
-                    taker_clone.average_fill_price = Some(new_total_amount / taker_clone.filled_quantity);
-                    
-                    // Update maker (in a real system, this would be persisted)
-                    // For now we just track them for the result
-                    matched_makers.push(maker.clone());
-                    
-                    // Add the trade to the result
-                    trades.push(trade);
-                    
-                    // Update the order book's last price
-                    order_book.set_last_price(best_bid);
-                    
-                    // Remove filled maker orders from the book
-                    if maker.remaining_quantity == match_quantity {
-                        order_book.remove_order(maker.id, Side::Buy);
-                    }
-                    
-                    // Check if taker is filled
-                    if taker_quantity == Quantity::ZERO {
-                        taker_filled = true;
-                        break;
-                    }
+            // For limit orders, check if the price is acceptable
+            if taker.order_type == OrderType::Limit {
+                let limit_price = taker.price.unwrap();
+                if limit_price > best_bid {
+                    break; // Best bid is lower than our limit price
                 }
-            } else {
-                // Limit price not acceptable
-                break;
+            }
+            
+            // Get the first maker order at the best bid price
+            if let Some(maker) = order_book.get_first_bid_order(best_bid) {
+                // Calculate the match quantity
+                let match_quantity = Quantity::min(taker_quantity, maker.remaining_quantity);
+                
+                // Create a trade
+                let trade = self.create_trade(
+                    best_bid,
+                    match_quantity,
+                    &taker.market,
+                    maker.id,
+                    taker.id,
+                    maker.user_id,
+                    taker.user_id,
+                    Side::Sell, // Taker is selling, so taker side is Sell
+                );
+                
+                // Update taker
+                taker_quantity -= match_quantity;
+                taker_clone.remaining_quantity = taker_quantity;
+                taker_clone.filled_quantity += match_quantity;
+                
+                // Calculate new average fill price
+                let total_filled_amount = taker_clone.average_fill_price
+                    .map_or(Quantity::ZERO, |p| p * taker_clone.filled_quantity);
+                let match_amount = best_bid * match_quantity;
+                let new_total_amount = total_filled_amount + match_amount;
+                taker_clone.average_fill_price = Some(new_total_amount / taker_clone.filled_quantity);
+                
+                // Update maker (in a real system, this would be persisted)
+                // For now we just track them for the result
+                matched_makers.push(maker.clone());
+                
+                // Add the trade to the result
+                trades.push(trade);
+                
+                // Update the order book's last price
+                order_book.set_last_price(best_bid);
+                
+                // Remove filled maker orders from the book
+                if maker.remaining_quantity == match_quantity {
+                    order_book.remove_order(maker.id, Side::Buy);
+                }
+                
+                // Check if taker is filled
+                if taker_quantity == Quantity::ZERO {
+                    taker_filled = true;
+                    break;
+                }
             }
         }
         
         // Update taker status
         if taker_filled {
-            taker_clone.status = OrderStatus::Filled;
+            taker_clone.status = Status::Filled;
         } else if taker_clone.filled_quantity > Quantity::ZERO {
-            taker_clone.status = OrderStatus::PartiallyFilled;
+            taker_clone.status = Status::PartiallyFilled;
         }
+        
         taker_clone.updated_at = Utc::now();
         
-        // Return the result
-        let updated_taker = Arc::new(taker_clone);
-        
-        // Update the order in our index
-        self.orders.insert(updated_taker.id, updated_taker.clone());
-        
-        (Some(updated_taker), matched_makers, trades)
+        // Return updated taker order and trades
+        (Some(Arc::new(taker_clone)), matched_makers, trades)
     }
     
-    /// Cancel an order
-    pub fn cancel_order(&self, order_id: Uuid) -> Result<Arc<Order>> {
-        // Find the order
-        let order = self.orders.get(&order_id).ok_or_else(|| {
-            Error::OrderNotFound(format!("Order not found: {}", order_id))
-        })?;
-        
-        // Only active orders can be canceled
-        if !order.is_active() {
-            return Err(Error::InvalidOrder(
-                format!("Order {} cannot be canceled: status is {:?}", order_id, order.status)
-            ));
+    /// Create a trade from a match
+    fn create_trade(
+        &self,
+        price: Price,
+        quantity: Quantity,
+        market: &str,
+        buyer_order_id: Uuid,
+        seller_order_id: Uuid,
+        buyer_id: Uuid,
+        seller_id: Uuid,
+        taker_side: Side,
+    ) -> Trade {
+        Trade {
+            id: Uuid::new_v4(),
+            market: market.to_string(),
+            price,
+            quantity,
+            amount: price * quantity,
+            buyer_order_id,
+            seller_order_id,
+            buyer_id,
+            seller_id,
+            taker_side,
+            created_at: Utc::now(),
         }
-        
-        // Get the order book
-        let order_book_lock = self.get_order_book(&order.market)?;
-        let mut order_book = order_book_lock.write().unwrap();
-        
-        // Remove from the book
-        order_book.remove_order(order_id, order.side);
-        
-        // Create a canceled version of the order
-        let mut canceled_order = order.as_ref().clone();
-        canceled_order.status = OrderStatus::Cancelled;
-        canceled_order.updated_at = Utc::now();
-        
-        // Update in our index
-        let canceled_order = Arc::new(canceled_order);
-        self.orders.insert(order_id, canceled_order.clone());
-        
-        Ok(canceled_order)
     }
-    
-    /// Get market depth
-    pub fn get_market_depth(&self, market: &str, limit: usize) -> Result<(Vec<(Price, Quantity)>, Vec<(Price, Quantity)>)> {
-        let order_book_lock = self.get_order_book(market)?;
-        let order_book = order_book_lock.read().unwrap();
-        
-        let bids = order_book.bid_levels(limit);
-        let asks = order_book.ask_levels(limit);
-        
-        Ok((bids, asks))
-    }
-    
-}    
+}

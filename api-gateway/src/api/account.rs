@@ -30,7 +30,8 @@ pub async fn create_account(
     State(state): State<Arc<AppState>>,
     Json(_request): Json<CreateAccountRequest>,
 ) -> Result<Json<CreateAccountResponse>, ApiError> {
-    let account = state.account_service.create_account();
+    let account = state.account_service.create_account().await
+        .map_err(ApiError::Common)?;
     
     Ok(Json(CreateAccountResponse { account }))
 }
@@ -47,7 +48,8 @@ pub async fn get_account(
     State(state): State<Arc<AppState>>,
     Path(id): Path<Uuid>,
 ) -> Result<Json<GetAccountResponse>, ApiError> {
-    let account = state.account_service.get_account(id)
+    let account = state.account_service.get_account(id).await
+        .map_err(ApiError::Common)?
         .ok_or_else(|| ApiError::NotFound(format!("Account not found: {}", id)))?;
     
     Ok(Json(GetAccountResponse { account }))
@@ -65,7 +67,8 @@ pub async fn get_balances(
     State(state): State<Arc<AppState>>,
     Path(id): Path<Uuid>,
 ) -> Result<Json<GetBalancesResponse>, ApiError> {
-    let balances = state.account_service.get_balances(id);
+    let balances = state.account_service.get_balances(id).await
+        .map_err(ApiError::Common)?;
     
     Ok(Json(GetBalancesResponse { balances }))
 }
@@ -92,7 +95,7 @@ pub async fn deposit(
     Path(id): Path<Uuid>,
     Json(request): Json<DepositRequest>,
 ) -> Result<Json<DepositResponse>, ApiError> {
-    let balance = state.account_service.deposit(id, &request.asset, request.amount)
+    let balance = state.account_service.deposit(id, &request.asset, request.amount).await
         .map_err(ApiError::Common)?;
     
     Ok(Json(DepositResponse { balance }))
@@ -120,7 +123,7 @@ pub async fn withdraw(
     Path(id): Path<Uuid>,
     Json(request): Json<WithdrawRequest>,
 ) -> Result<Json<WithdrawResponse>, ApiError> {
-    let balance = state.account_service.withdraw(id, &request.asset, request.amount)
+    let balance = state.account_service.withdraw(id, &request.asset, request.amount).await
         .map_err(ApiError::Common)?;
     
     Ok(Json(WithdrawResponse { balance }))

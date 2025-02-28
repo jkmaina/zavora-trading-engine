@@ -58,6 +58,7 @@ impl IntoResponse for ApiError {
                 common::error::Error::Internal(_) => StatusCode::INTERNAL_SERVER_ERROR,
                 common::error::Error::Database(_) => StatusCode::INTERNAL_SERVER_ERROR,
                 common::error::Error::Serialization(_) => StatusCode::INTERNAL_SERVER_ERROR,
+                common::error::Error::Migration(_) => StatusCode::INTERNAL_SERVER_ERROR
             },
         };
         
@@ -74,6 +75,7 @@ impl IntoResponse for ApiError {
                 common::error::Error::Internal(_) => "internal_error",
                 common::error::Error::Database(_) => "database_error",
                 common::error::Error::Serialization(_) => "serialization_error",
+                common::error::Error::Migration(_) => "migration_error"
             },
         };
         

@@ -78,7 +78,7 @@ pub async fn place_order(
     };
     
     // Reserve funds for the order
-    state.account_service.reserve_for_order(&order)
+    state.account_service.reserve_for_order(&order).await
         .map_err(ApiError::Common)?;
     
     // Place the order
@@ -87,7 +87,7 @@ pub async fn place_order(
     
     // Process trades
     for trade in &result.trades {
-        state.account_service.process_trade(trade)
+        state.account_service.process_trade(trade).await
             .map_err(ApiError::Common)?;
         
         state.market_data_service.process_trade(trade)
@@ -130,8 +130,8 @@ pub async fn cancel_order(
     .map_err(ApiError::Common)?;
     
     // Release reserved funds with a timeout
-    state.account_service.release_reserved_funds(&order)
-    .map_err(ApiError::Common)?;
+    state.account_service.release_reserved_funds(&order).await
+        .map_err(ApiError::Common)?;
     
     // Update order book with a timeout
     if let Ok((bids, asks)) = state.matching_engine.get_market_depth(&order.market, 10) {

@@ -24,26 +24,26 @@ struct Args {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // Initialize tracing
-    tracing_subscriber::fmt::init();
-    
-    info!("Starting Zavora Trading Engine...");
-
     // Load environment variables
     dotenv().ok();
     
     // Parse command line arguments
     let args = Args::parse();
     
-    // Initialize logging
+    // Initialize tracing
     let subscriber = FmtSubscriber::builder()
         .with_max_level(Level::INFO)
         .finish();
-    tracing::subscriber::set_global_default(subscriber)
-        .expect("Failed to set tracing subscriber");
+    
+    // Only set the global subscriber if it hasn't been set already
+    if tracing::subscriber::set_global_default(subscriber).is_ok() {
+        info!("Tracing initialized");
+    }
+    
+    info!("Starting Zavora Trading Engine...");
     
     // Initialize services
-    let mut matching_engine = MatchingEngine::new();
+    let matching_engine = MatchingEngine::new();
     let account_service = Arc::new(AccountService::new());
     let market_data_service = Arc::new(MarketDataService::new());
     
@@ -134,8 +134,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 .with_state(state);
             
             // Parse address to listen on
-            info!("Starting API server on 0.0.0.0:8080");
-            let addr: std::net::SocketAddr = ([0, 0, 0, 0], 8080).into();
+            let port = std::env::var("API_PORT").unwrap_or_else(|_| "8081".to_string());
+            let port: u16 = port.parse().expect("Invalid API_PORT value");
+            info!("Starting API server on 0.0.0.0:{}", port);
+            let addr: std::net::SocketAddr = ([0, 0, 0, 0], port).into();
             
             // Start the server
             let listener = tokio::net::TcpListener::bind(&addr).await.expect("Failed to bind to address");
@@ -162,17 +164,17 @@ async fn create_demo_data(
     market_data_service: Arc<MarketDataService>,
 ) -> Result<(), Box<dyn std::error::Error>> {
     // Create two demo accounts
-    let alice = account_service.create_account();
-    let bob = account_service.create_account();
+    let alice = account_service.create_account().await?;
+    let bob = account_service.create_account().await?;
     
     info!("Created demo accounts: Alice = {}, Bob = {}", alice.id, bob.id);
     
     // Add some funds to the accounts
-    account_service.deposit(alice.id, "USD", dec!(100000))?;
-    account_service.deposit(alice.id, "BTC", dec!(10))?;
+    account_service.deposit(alice.id, "USD", dec!(100000)).await?;
+    account_service.deposit(alice.id, "BTC", dec!(10)).await?;
     
-    account_service.deposit(bob.id, "USD", dec!(100000))?;
-    account_service.deposit(bob.id, "BTC", dec!(10))?;
+    account_service.deposit(bob.id, "USD", dec!(100000)).await?;
+    account_service.deposit(bob.id, "BTC", dec!(10)).await?;
     
     info!("Added funds to demo accounts");
     
@@ -208,11 +210,11 @@ async fn create_demo_data(
     ];
     
     for order in orders {
-        account_service.reserve_for_order(&order)?;
+        account_service.reserve_for_order(&order).await?;
         let result = matching_engine.place_order(order)?;
         
         for trade in &result.trades {
-            account_service.process_trade(trade)?;
+            account_service.process_trade(trade).await?;
             market_data_service.process_trade(trade).await?;
         }
     }
@@ -246,11 +248,11 @@ async fn create_demo_data(
     ];
     
     for order in orders {
-        account_service.reserve_for_order(&order)?;
+        account_service.reserve_for_order(&order).await?;
         let result = matching_engine.place_order(order)?;
         
         for trade in &result.trades {
-            account_service.process_trade(trade)?;
+            account_service.process_trade(trade).await?;
             market_data_service.process_trade(trade).await?;
         }
     }
@@ -265,11 +267,11 @@ async fn create_demo_data(
         TimeInForce::GTC,
     );
     
-    account_service.reserve_for_order(&matching_order)?;
+    account_service.reserve_for_order(&matching_order).await?;
     let result = matching_engine.place_order(matching_order)?;
     
     for trade in &result.trades {
-        account_service.process_trade(trade)?;
+        account_service.process_trade(trade).await?;
         market_data_service.process_trade(trade).await?;
     }
     
