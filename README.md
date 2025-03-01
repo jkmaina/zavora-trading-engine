@@ -17,9 +17,48 @@ The Zavora Trading Engine is a high-performance, low-latency trading system impl
 
 ### Prerequisites
 - [Rust](https://www.rust-lang.org/tools/install) (1.70+)
-- [Docker](https://docs.docker.com/get-docker/) and Docker Compose
-- [PostgreSQL client](https://www.postgresql.org/download/) (optional, for direct database access)
-- [jq](https://jqlang.github.io/jq/download/) (optional, for API testing)
+  ```bash
+  # Install Rust using rustup
+  curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+  
+  # Add recommended components
+  rustup component add rustfmt clippy
+  
+  # For enhanced development (recommended)
+  cargo install cargo-watch cargo-expand cargo-edit
+  ```
+  
+- [Docker](https://docs.docker.com/get-docker/) and [Docker Compose](https://docs.docker.com/compose/install/)
+  ```bash
+  # Verify installation
+  docker --version
+  docker-compose --version
+  
+  # On Linux, add your user to the docker group (recommended)
+  sudo usermod -aG docker $USER
+  ```
+  
+- [PostgreSQL client](https://www.postgresql.org/download/) (recommended for development)
+  ```bash
+  # On Ubuntu/Debian
+  sudo apt-get install postgresql-client
+  
+  # On macOS with Homebrew
+  brew install libpq
+  brew link --force libpq
+  ```
+  
+- Development tools (recommended)
+  ```bash
+  # jq for API testing
+  sudo apt-get install jq  # or brew install jq on macOS
+  
+  # SQLx CLI for database management
+  cargo install sqlx-cli
+  
+  # HTTP testing utility
+  cargo install httpie
+  ```
 
 ### Building the Project
 ```bash
@@ -55,9 +94,27 @@ source .env.test && cargo test --test db_tests -- --ignored
 The trading engine uses the following environment variables:
 
 - `DATABASE_URL`: PostgreSQL connection string for the main database
+  - Example: `postgres://viabtc:viabtc@localhost:5435/viabtc`
 - `TEST_DATABASE_URL`: PostgreSQL connection string for the test database
+  - Example: `postgres://viabtc:viabtc@localhost:5434/viabtc_test`
 - `API_PORT`: Port for the API server (default: 8081)
 - `RUST_LOG`: Logging level (e.g., info, debug, trace)
+
+You can create a `.env` file in the project root for development:
+
+```bash
+# Create .env file for development
+cat > .env << EOF
+DATABASE_URL=postgres://viabtc:viabtc@localhost:5435/viabtc
+RUST_LOG=info,sqlx=warn
+API_PORT=8081
+EOF
+
+# Create .env.test file for testing
+cat > .env.test << EOF
+export TEST_DATABASE_URL=postgres://viabtc:viabtc@localhost:5434/viabtc_test
+EOF
+```
 
 ### Running Tests
 ```bash
@@ -251,6 +308,69 @@ The project implements a comprehensive testing strategy:
 - **Performance Tests**: Benchmark critical paths for performance regression
 
 See [TESTING_DB.md](TESTING_DB.md) for detailed database testing information.
+
+## Development Recommendations
+
+### IDE Setup
+
+For the best development experience with Rust, we recommend:
+
+- **VS Code** with the following extensions:
+  - rust-analyzer (essential)
+  - CodeLLDB (for debugging)
+  - crates (for dependency management)
+  - Better TOML (for Cargo.toml files)
+  - SQLx (for database operations)
+
+- **IntelliJ IDEA / CLion** with:
+  - Rust plugin
+  - Database navigator
+
+### Code Quality Tools
+
+Maintain code quality with these commands:
+
+```bash
+# Run all linting checks
+cargo clippy -- -D warnings
+
+# Format all code
+cargo fmt --all
+
+# Check for unused dependencies
+cargo audit
+
+# Run all tests (excluding database tests)
+cargo test --all-features
+```
+
+### Debugging
+
+For debugging, use either:
+
+1. VS Code with CodeLLDB extension:
+   - Create a `.vscode/launch.json` with appropriate configurations
+   - Use the Run/Debug panel to launch services
+
+2. Command line with `rust-gdb` or `rust-lldb`:
+   ```bash
+   rust-gdb target/debug/trading-engine
+   ```
+
+### Service Development
+
+When developing a specific service:
+
+```bash
+# Watch for changes and automatically rebuild/test
+cargo watch -x "run -p account-service -- start"
+
+# Test a specific service
+cargo test -p matching-engine
+
+# Load database schema for offline SQLx macros
+cargo sqlx prepare --database-url "postgres://viabtc:viabtc@localhost:5435/viabtc"
+```
 
 ## Release Management
 
