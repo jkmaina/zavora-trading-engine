@@ -41,4 +41,28 @@ deploy/
 3. Deploy application with Kubernetes
 4. Configure networking and security
 
-See the specific provider directories for detailed instructions.
+See the [DEPLOYMENT.md](./DEPLOYMENT.md) file for detailed instructions.
+
+## Release Management
+
+The project uses semantic versioning with GitHub releases that align with the RELEASE_NOTES.md file.
+
+### Creating a GitHub Release
+
+Use the provided script to create GitHub releases directly from the RELEASE_NOTES.md file:
+
+```bash
+# Create a GitHub release for a specific tag
+./scripts/create_github_release.sh v0.1.1 "Cloud Deployment Update"
+```
+
+The script extracts the release notes for the specified version from RELEASE_NOTES.md and creates a GitHub release with the extracted content.
+
+### Updating Release Notes
+
+When adding new features or making significant changes:
+
+1. Update the RELEASE_NOTES.md file with a new version section at the top
+2. Commit and push the changes
+3. Tag the commit with the new version number
+4. Create a GitHub release using the script
