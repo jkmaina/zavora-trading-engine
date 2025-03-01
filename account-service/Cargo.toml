@@ -16,7 +16,7 @@ tokio = { workspace = true, features = ["full"] }
 thiserror = { workspace = true }
 dashmap = "5.5.3"  # Concurrent HashMap for thread-safe access
 async-trait = "0.1.77"
-sqlx = { version = "0.7.3", features = ["runtime-tokio-rustls", "postgres", "chrono", "uuid", "json", "macros"] }
+sqlx = { workspace = true, features = ["macros"] }
 futures = "0.3.30"
 dotenv = "0.15.0"
 tracing-subscriber = { version = "0.3.18", features = ["env-filter"] }

@@ -12,5 +12,5 @@ chrono = { workspace = true }
 rust_decimal = { workspace = true }
 rust_decimal_macros = { workspace = true }
 tracing = { workspace = true }
-sqlx = { version = "0.7.3", features = ["runtime-tokio-rustls", "postgres", "chrono", "uuid", "json"] }
+sqlx = { workspace = true }
 async-trait = "0.1.78"

@@ -1,5 +1,15 @@
 # Zavora Trading Engine Release Notes
 
+## v0.1.2 (Security Update & Setup Improvements)
+
+### Security Updates
+- Upgraded SQLx to 0.8.1 to address security vulnerabilities
+
+### Fixes
+- Fixed build issues with missing source files
+- Added troubleshooting guide for Docker permissions
+- Added Node.js installation instructions for WebSocket tests
+
 ## v0.1.1 (Cloud Deployment Update)
 
 ### Features
