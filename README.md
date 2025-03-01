@@ -24,7 +24,7 @@ The Zavora Trading Engine is a high-performance, low-latency trading system impl
 ### Building the Project
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/zavora-trading-engine.git
+git clone https://github.com/jkmaina/zavora-trading-engine.git
 
 # Build the project
 cd zavora-trading-engine
@@ -162,7 +162,8 @@ The Zavora Trading Engine is built on a modular microservices architecture for f
 
 #### Common Utilities (`common/`)
 - Shared data models and structures
-- Error handling and logging
+- Standardized error handling system with domain-specific error types
+- Unified transaction system with consistent rollback
 - Database access abstractions
 - Decimal number handling for currency
 - Utility functions and helpers
@@ -246,10 +247,16 @@ The project implements a comprehensive testing strategy:
 - **Unit Tests**: Cover individual components and functions
 - **Integration Tests**: Verify interactions between components
 - **Database Tests**: Ensure persistence works correctly with real database
-- **API Tests**: Validate HTTP endpoints behavior and error handling
+- **API Tests**: Validate HTTP endpoints behavior and consistency of error responses
 - **Performance Tests**: Benchmark critical paths for performance regression
 
 See [TESTING_DB.md](TESTING_DB.md) for detailed database testing information.
+
+## Release Management
+
+The project follows semantic versioning and maintains a [RELEASE_NOTES.md](./RELEASE_NOTES.md) file with details of each release. GitHub releases are created to align with the release notes.
+
+For detailed information on our deployment and release process, see the [deployment guide](./deploy/DEPLOYMENT.md).
 
 ## Contributing
 
