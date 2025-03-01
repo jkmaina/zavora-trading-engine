@@ -33,7 +33,7 @@ echo ""
 echo "1. Creating a new account"
 execute_sql "INSERT INTO accounts (id, user_id, created_at, updated_at) 
              VALUES ('$ACCOUNT_ID', '$USER_ID', NOW(), NOW()) 
-             RETURNING id, user_id, balance;"
+             RETURNING id, user_id;"
 
 echo ""
 echo "2. Retrieving the account"
