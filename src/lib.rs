@@ -11,6 +11,3 @@ pub mod test_helpers {
         }
     }
 }
-
-// Re-export common error type for convenience
-pub use common::error::Result;
