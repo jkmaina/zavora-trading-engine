@@ -13,6 +13,61 @@ The Zavora Trading Engine is a high-performance, low-latency trading system impl
 - REST API and WebSocket endpoints for real-time data access
 - Modular design allowing for easy component replacement or extension
 
+## System Architecture
+
+The Zavora Trading Engine is built on a modular microservices architecture for flexibility, scalability, and maintainability:
+
+### Core Components
+
+#### Matching Engine (`matching-engine/`)
+- Maintains order books for all markets
+- Processes limit and market orders
+- Implements price-time priority matching algorithm
+- Generates trades when orders match
+- Supports order cancellation and modification
+
+#### Account Service (`account-service/`)
+- Manages user accounts and balances
+- Handles deposits and withdrawals
+- Reserves and releases funds for orders
+- Processes trades to update balances
+- Supports both in-memory and PostgreSQL persistence
+- Provides transaction processing with ACID guarantees
+
+#### Market Data Service (`market-data/`)
+- Maintains market statistics and price information
+- Processes and aggregates trade data
+- Provides order book snapshots and updates
+- Supports both real-time and historical data
+
+#### API Gateway (`api-gateway/`)
+- RESTful HTTP API for all services
+- WebSocket support for real-time updates
+- Request validation and error handling
+- Authentication and authorization (planned)
+- Rate limiting and throttling protection (planned)
+
+#### Common Utilities (`common/`)
+- Shared data models and structures
+- Standardized error handling system with domain-specific error types
+- Unified transaction system with consistent rollback
+- Database access abstractions
+- Decimal number handling for currency
+- Utility functions and helpers
+
+### Communication Flow
+1. External requests enter through the API Gateway
+2. API Gateway routes requests to appropriate services
+3. Services communicate asynchronously using Tokio
+4. Each service is responsible for its own data persistence
+5. Services maintain consistency through transaction patterns
+
+### Persistence Layer
+- PostgreSQL database for all persistent data
+- Separation of read and write operations
+- Optimized queries for high-throughput operations
+- Database connection pooling for efficiency
+
 ## Getting Started
 
 ### Prerequisites
@@ -182,61 +237,6 @@ The system uses PostgreSQL for persistence with the following main tables:
 - `market_summaries` - Market statistics and price data
 
 See `migrations/20240227000000_initial_schema.sql` for the complete schema.
-
-## System Architecture
-
-The Zavora Trading Engine is built on a modular microservices architecture for flexibility, scalability, and maintainability:
-
-### Core Components
-
-#### Matching Engine (`matching-engine/`)
-- Maintains order books for all markets
-- Processes limit and market orders
-- Implements price-time priority matching algorithm
-- Generates trades when orders match
-- Supports order cancellation and modification
-
-#### Account Service (`account-service/`)
-- Manages user accounts and balances
-- Handles deposits and withdrawals
-- Reserves and releases funds for orders
-- Processes trades to update balances
-- Supports both in-memory and PostgreSQL persistence
-- Provides transaction processing with ACID guarantees
-
-#### Market Data Service (`market-data/`)
-- Maintains market statistics and price information
-- Processes and aggregates trade data
-- Provides order book snapshots and updates
-- Supports both real-time and historical data
-
-#### API Gateway (`api-gateway/`)
-- RESTful HTTP API for all services
-- WebSocket support for real-time updates
-- Request validation and error handling
-- Authentication and authorization (planned)
-- Rate limiting and throttling protection (planned)
-
-#### Common Utilities (`common/`)
-- Shared data models and structures
-- Standardized error handling system with domain-specific error types
-- Unified transaction system with consistent rollback
-- Database access abstractions
-- Decimal number handling for currency
-- Utility functions and helpers
-
-### Communication Flow
-1. External requests enter through the API Gateway
-2. API Gateway routes requests to appropriate services
-3. Services communicate asynchronously using Tokio
-4. Each service is responsible for its own data persistence
-5. Services maintain consistency through transaction patterns
-
-### Persistence Layer
-- PostgreSQL database for all persistent data
-- Separation of read and write operations
-- Optimized queries for high-throughput operations
-- Database connection pooling for efficiency
 
 ## API Documentation
 
