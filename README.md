@@ -70,6 +70,8 @@ The Zavora Trading Engine is built on a modular microservices architecture for f
 
 ## Getting Started
 
+> **IMPORTANT**: If you encounter any issues with the build process or running Docker commands, see the [Troubleshooting](#troubleshooting) section below.
+
 ### Prerequisites
 - [Rust](https://www.rust-lang.org/tools/install) (1.70+)
   ```bash
@@ -80,6 +82,9 @@ The Zavora Trading Engine is built on a modular microservices architecture for f
   rustup component add rustfmt clippy
   
   # For enhanced development (recommended)
+  sudo apt update
+  sudo apt install build-essential -y
+  sudo apt install pkg-config libssl-dev -y
   cargo install cargo-watch cargo-expand cargo-edit
   ```
   
@@ -89,8 +94,13 @@ The Zavora Trading Engine is built on a modular microservices architecture for f
   docker --version
   docker-compose --version
   
-  # On Linux, add your user to the docker group (recommended)
+  # On Linux, add your user to the docker group (REQUIRED)
+  sudo groupadd docker
   sudo usermod -aG docker $USER
+  newgrp docker  # Apply group changes to current shell
+  
+  # Verify docker permissions
+  docker ps
   ```
   
 - [PostgreSQL client](https://www.postgresql.org/download/) (recommended for development)
@@ -387,6 +397,69 @@ Contributions are welcome! To contribute to the Zavora Trading Engine:
 3. Commit your changes (`git commit -m 'Add some amazing feature'`)
 4. Push to the branch (`git push origin feature/amazing-feature`)
 5. Open a Pull Request
+
+## Troubleshooting
+
+### Docker Permission Issues
+
+If you encounter `permission denied` errors when running Docker commands:
+
+```
+permission denied while trying to connect to the Docker daemon socket at unix:///var/run/docker.sock
+```
+
+Solution:
+1. Add your user to the docker group:
+   ```bash
+   sudo groupadd docker
+   sudo usermod -aG docker $USER
+   ```
+2. Apply the changes to your current shell:
+   ```bash
+   newgrp docker
+   ```
+   OR log out and log back in
+
+3. Verify you can run Docker without sudo:
+   ```bash
+   docker ps
+   ```
+
+### Build Errors
+
+If you encounter build errors related to missing files:
+
+```
+error: couldn't read src/lib.rs: No such file or directory (os error 2)
+```
+
+Solution:
+1. Make sure you have the latest code from the repository:
+   ```bash
+   git pull
+   ```
+2. Try cleaning the build cache:
+   ```bash
+   cargo clean
+   cargo build --release
+   ```
+
+### API Connectivity Issues
+
+If API tests don't work after starting the Docker containers:
+
+1. Check if the PostgreSQL container is running:
+   ```bash
+   docker ps
+   ```
+2. Ensure the API server is running on the right port (default: 8081):
+   ```bash
+   netstat -tulpn | grep 8081
+   ```
+3. Check Docker logs for any errors:
+   ```bash
+   docker logs zavora-trading-engine-postgres-1
+   ```
 
 ## License
 
