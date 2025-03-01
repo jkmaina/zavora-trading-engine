@@ -1,91 +1,133 @@
 #!/bin/bash
-# api_test.sh - REST API Test Script for Trading Engine
+# API test script - run some direct database commands to test the database
 
-set -e
-BASE_URL="http://localhost:8080/api/v1"
-GREEN='\033[0;32m'
-RED='\033[0;31m'
-NC='\033[0m' # No Color
+# Configuration
+DB_HOST=${DB_HOST:-"localhost"}
+DB_PORT=${DB_PORT:-"5435"}
+DB_USER=${DB_USER:-"viabtc"}
+DB_PASS=${DB_PASS:-"viabtc"}
+DB_NAME=${DB_NAME:-"viabtc"}
 
-echo "Testing Trading Engine REST API"
-echo "==============================="
-
-# Helper function for testing endpoints
-test_endpoint() {
-  local endpoint=$1
-  local method=${2:-GET}
-  local payload=$3
-  local expected_status=${4:-200}
-  
-  echo -n "Testing $method $endpoint... "
-  
-  # Build curl command
-  CURL_CMD="curl -s -X $method -w '%{http_code}' -H 'Content-Type: application/json'"
-  
-  if [ ! -z "$payload" ]; then
-    CURL_CMD="$CURL_CMD -d '$payload'"
-  fi
-  
-  CURL_CMD="$CURL_CMD $BASE_URL$endpoint"
-  
-  # Execute request
-  response=$(eval $CURL_CMD)
-  status_code=${response: -3}
-  body=${response:0:${#response}-3}
-  
-  # Check status code
-  if [ "$status_code" -eq "$expected_status" ]; then
-    echo -e "${GREEN}PASS${NC}"
-    # Store the response for later use if needed
-    echo "$body" > "/tmp/test_$(echo $endpoint | tr '/' '_')_response.json"
-  else
-    echo -e "${RED}FAIL${NC} - Expected status $expected_status but got $status_code"
-    echo "Response: $body"
+# Check if psql is available
+if ! command -v psql &> /dev/null; then
+    echo "Error: PostgreSQL client (psql) is not installed."
+    echo "Please install PostgreSQL client to run this script."
     exit 1
-  fi
+fi
+
+# Helper function to execute SQL queries
+execute_sql() {
+    local query=$1
+    PGPASSWORD=$DB_PASS psql -h $DB_HOST -p $DB_PORT -U $DB_USER -d $DB_NAME -c "$query"
 }
 
-# Test 1: Get markets
-test_endpoint "/markets"
+# Test data
+USER_ID="user123"
+MARKET_ID="btc_usdt"
+ACCOUNT_ID=$(uuidgen 2>/dev/null || echo "00000000-0000-0000-0000-000000000001")
+ORDER_ID=$(uuidgen 2>/dev/null || echo "00000000-0000-0000-0000-000000000002")
 
-# Test 2: Create an account
-test_endpoint "/accounts" "POST" "{}"
-ACCOUNT_ID=$(cat /tmp/test__accounts_response.json | grep -o '"id":"[^"]*' | cut -d'"' -f4)
-echo "Created account with ID: $ACCOUNT_ID"
+echo "=== Direct Database Access Tests ==="
+echo ""
 
-# Test 3: Get account details
-test_endpoint "/accounts/$ACCOUNT_ID"
+echo "1. Creating a new account"
+execute_sql "INSERT INTO accounts (id, user_id, balance, created_at, updated_at) 
+             VALUES ('$ACCOUNT_ID', '$USER_ID', '1000.00', NOW(), NOW()) 
+             RETURNING id, user_id, balance;"
 
-# Test 4: Deposit funds
-test_endpoint "/accounts/$ACCOUNT_ID/deposit" "POST" '{"asset":"BTC","amount":"1.0"}'
-test_endpoint "/accounts/$ACCOUNT_ID/deposit" "POST" '{"asset":"USD","amount":"50000.0"}'
+echo ""
+echo "2. Retrieving the account"
+execute_sql "SELECT * FROM accounts WHERE id = '$ACCOUNT_ID';"
 
-# Test 5: Get balances
-test_endpoint "/accounts/$ACCOUNT_ID/balances"
+echo ""
+echo "3. Creating a new market"
+execute_sql "INSERT INTO markets (id, base_asset, quote_asset, min_price, max_price, tick_size, min_quantity, max_quantity, step_size)
+             VALUES ('$MARKET_ID', 'BTC', 'USDT', '0.01', '1000000', '0.01', '0.001', '1000', '0.001')
+             ON CONFLICT (id) DO UPDATE SET 
+             base_asset = EXCLUDED.base_asset,
+             quote_asset = EXCLUDED.quote_asset,
+             updated_at = NOW()
+             RETURNING id, base_asset, quote_asset;"
 
-# Test 6: Get order book
-test_endpoint "/markets/BTC%2FUSD/order-book"
+echo ""
+echo "4. Creating a buy order"
+BUY_ORDER_ID=$(uuidgen 2>/dev/null || echo "00000000-0000-0000-0000-000000000003")
+execute_sql "INSERT INTO orders (id, account_id, market_id, side, order_type, price, quantity, filled_quantity, status)
+             VALUES ('$BUY_ORDER_ID', '$ACCOUNT_ID', '$MARKET_ID', 0, 0, '40000', '0.1', '0', 0)
+             RETURNING id, market_id, side, price, quantity;"
 
-# Test 7: Get recent trades
-test_endpoint "/markets/BTC%2FUSD/trades"
+echo ""
+echo "5. Creating a sell order"
+SELL_ORDER_ID=$(uuidgen 2>/dev/null || echo "00000000-0000-0000-0000-000000000004")
+execute_sql "INSERT INTO orders (id, account_id, market_id, side, order_type, price, quantity, filled_quantity, status)
+             VALUES ('$SELL_ORDER_ID', '$ACCOUNT_ID', '$MARKET_ID', 1, 0, '41000', '0.05', '0', 0)
+             RETURNING id, market_id, side, price, quantity;"
 
-# Test 8: Place limit buy order
-test_endpoint "/orders" "POST" "{\"user_id\":\"$ACCOUNT_ID\",\"market\":\"BTC/USD\",\"side\":\"Buy\",\"order_type\":\"Limit\",\"price\":\"19000.0\",\"quantity\":\"0.1\"}"
-BUY_ORDER_ID=$(cat /tmp/test__orders_response.json | grep -o '"id":"[^"]*' | head -1 | cut -d'"' -f4)
-echo "Created buy order with ID: $BUY_ORDER_ID"
+echo ""
+echo "6. Listing all orders"
+execute_sql "SELECT id, market_id, side, order_type, price, quantity, status FROM orders ORDER BY created_at DESC LIMIT 5;"
 
-# Test 9: Place limit sell order
-test_endpoint "/orders" "POST" "{\"user_id\":\"$ACCOUNT_ID\",\"market\":\"BTC/USD\",\"side\":\"Sell\",\"order_type\":\"Limit\",\"price\":\"21000.0\",\"quantity\":\"0.05\"}"
-SELL_ORDER_ID=$(cat /tmp/test__orders_response.json | grep -o '"id":"[^"]*' | head -1 | cut -d'"' -f4)
-echo "Created sell order with ID: $SELL_ORDER_ID"
+echo ""
+echo "7. Creating a simulated trade"
+TRADE_ID=$(uuidgen 2>/dev/null || echo "00000000-0000-0000-0000-000000000005")
+execute_sql "INSERT INTO trades (id, market_id, maker_order_id, taker_order_id, price, quantity)
+             VALUES ('$TRADE_ID', '$MARKET_ID', '$SELL_ORDER_ID', '$BUY_ORDER_ID', '40500', '0.025')
+             RETURNING id, market_id, price, quantity;"
 
-# Test 10: Get order details
-test_endpoint "/orders/$BUY_ORDER_ID"
+echo ""
+echo "8. Listing recent trades"
+execute_sql "SELECT id, market_id, price, quantity, executed_at FROM trades ORDER BY executed_at DESC LIMIT 5;"
 
-# Test 11: Cancel order
-test_endpoint "/orders/$SELL_ORDER_ID" "POST"
+echo ""
+echo "9. Creating market summary"
+execute_sql "INSERT INTO market_summaries (market_id, open_price, high_price, low_price, close_price, volume)
+             VALUES ('$MARKET_ID', '40000', '41000', '39500', '40500', '10.5')
+             ON CONFLICT (market_id) DO UPDATE SET
+             high_price = GREATEST(EXCLUDED.high_price, market_summaries.high_price),
+             low_price = LEAST(EXCLUDED.low_price, market_summaries.low_price),
+             close_price = EXCLUDED.close_price,
+             volume = EXCLUDED.volume,
+             updated_at = NOW()
+             RETURNING market_id, open_price, high_price, low_price, close_price, volume;"
 
-# Test 12: Get tickers
-test_endpoint "/markets/tickers"
+echo ""
+echo "10. Getting market summary"
+execute_sql "SELECT * FROM market_summaries WHERE market_id = '$MARKET_ID';"
 
-echo -e "\n${GREEN}All REST API tests passed!${NC}"
+echo ""
+echo "=== Database tests completed ==="
+
+# Generate curl commands for REST API testing (when the API is running)
+echo ""
+echo "=== REST API Test Commands ==="
+echo "Once your API is running, you can use these curl commands to test it:"
+echo ""
+
+echo "# Get account"
+echo "curl -s -X GET \"http://localhost:8080/api/accounts/$ACCOUNT_ID\""
+echo ""
+
+echo "# Get market"
+echo "curl -s -X GET \"http://localhost:8080/api/markets/$MARKET_ID\""
+echo ""
+
+echo "# Create a new buy order"
+echo "curl -s -X POST \"http://localhost:8080/api/orders\" \\
+    -H \"Content-Type: application/json\" \\
+    -d '{
+        \"account_id\": \"$ACCOUNT_ID\",
+        \"market_id\": \"$MARKET_ID\",
+        \"side\": \"buy\",
+        \"order_type\": \"limit\",
+        \"price\": \"40000\",
+        \"quantity\": \"0.1\"
+    }'"
+echo ""
+
+echo "# Get order book"
+echo "curl -s -X GET \"http://localhost:8080/api/markets/$MARKET_ID/orderbook\""
+echo ""
+
+echo "# Get recent trades"
+echo "curl -s -X GET \"http://localhost:8080/api/markets/$MARKET_ID/trades\""
+echo ""

@@ -320,4 +320,24 @@ impl OrderBook {
     pub fn asks(&self) -> &AskSide {
         &self.asks
     }
+    
+    /// Get the first order at the given ask price
+    pub fn get_first_ask_order(&mut self, price: Price) -> Option<Arc<Order>> {
+        if let Some(orders) = self.asks.orders_at(price) {
+            if !orders.is_empty() {
+                return Some(orders[0].clone());
+            }
+        }
+        None
+    }
+    
+    /// Get the first order at the given bid price
+    pub fn get_first_bid_order(&mut self, price: Price) -> Option<Arc<Order>> {
+        if let Some(orders) = self.bids.orders_at(price) {
+            if !orders.is_empty() {
+                return Some(orders[0].clone());
+            }
+        }
+        None
+    }
 }

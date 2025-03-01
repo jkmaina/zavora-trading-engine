@@ -5,6 +5,9 @@ edition = "2021"
 authors = ["James Karanja Maina<james.karanja@zavora.ai>"]
 description = "High-performance trading engine implemented in Rust"
 
+[features]
+db_tests = []
+
 [workspace]
 members = [
     "matching-engine",
@@ -35,13 +38,31 @@ dotenv = "0.15.0"
 # Testing dependencies
 [dev-dependencies]
 lazy_static = "1.4"
+tokio = { version = "1.36.0", features = ["full"] }
+sqlx = { version = "0.7.3", features = ["runtime-tokio-rustls", "postgres", "chrono", "uuid", "json"] }
+uuid = { version = "1.6.1", features = ["v4", "serde"] }
+rust_decimal = { version = "1.33.1", features = ["serde"] }
+rust_decimal_macros = "1.33.1"
+futures = "0.3"
+serde_json = "1.0.108"
+
+[dependencies]
+common = { path = "./common" }
+account-service = { path = "./account-service" }
+market-data = { path = "./market-data" }
+matching-engine = { path = "./matching-engine" }
+api-gateway = { path = "./api-gateway" }
+# trading-engine is a binary-only package and should not be a dependency
+# It's part of the workspace but not a dependency of the root package
 
 # A virtual metapackage for running tests
 [lib]
 name = "zavora_tests"
 path = "src/lib.rs"
+test = false  # Prevents compiling tests for the lib target
 
 # Making the root package able to run integration tests
 [[bin]]
 name = "zavora"
 path = "src/main.rs"
+test = false  # Prevents compiling tests for the binary target

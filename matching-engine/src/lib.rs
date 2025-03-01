@@ -1,5 +1,5 @@
 mod order_book;
-mod engine;
+pub mod engine;
 
 pub use engine::{MatchingEngine, MatchingResult};
 pub use order_book::{OrderBook, OrderBookSide};

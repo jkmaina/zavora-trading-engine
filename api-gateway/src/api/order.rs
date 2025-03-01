@@ -1,4 +1,10 @@
 //! Order API handlers
+//!
+//! Handlers for order management endpoints including:
+//! - Place new orders
+//! - Cancel existing orders
+//! - Get order details
+//! - List orders by user
 
 use std::sync::Arc;
 
@@ -7,11 +13,13 @@ use axum::{
     Json,
 };
 use common::model::order::{Order, OrderType, Side, TimeInForce};
+use common::model::trade::Trade;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 use crate::error::ApiError;
 use crate::AppState;
+use crate::api::response::{ApiResponse, ApiListResponse};
 
 /// Place order request
 #[derive(Debug, Deserialize)]
@@ -37,20 +45,20 @@ fn default_time_in_force() -> TimeInForce {
     TimeInForce::GTC
 }
 
-/// Place order response
+/// Order placement result
 #[derive(Debug, Serialize)]
-pub struct PlaceOrderResponse {
-    /// Order
+pub struct OrderPlacementResult {
+    /// The placed order
     pub order: Order,
-    /// Trades
-    pub trades: Vec<common::model::trade::Trade>,
+    /// Trades that were generated
+    pub trades: Vec<Trade>,
 }
 
 /// Place a new order
 pub async fn place_order(
     State(state): State<Arc<AppState>>,
     Json(request): Json<PlaceOrderRequest>,
-) -> Result<Json<PlaceOrderResponse>, ApiError> {
+) -> Result<ApiResponse<OrderPlacementResult>, ApiError> {
     // Create order from request
     let order = match request.order_type {
         OrderType::Limit => {
@@ -103,68 +111,57 @@ pub async fn place_order(
             .map_err(ApiError::Common)?;
     }
     
-    // Return response
-    Ok(Json(PlaceOrderResponse {
+    // Create placement result
+    let placement_result = OrderPlacementResult {
         order: result.taker_order.map(|o| o.as_ref().clone()).unwrap_or(order),
         trades: result.trades,
-    }))
-}
-
-/// Cancel order response
-#[derive(Debug, Serialize)]
-pub struct CancelOrderResponse {
-    /// Order
-    pub order: Order,
+    };
+    
+    // Return standardized response
+    Ok(ApiResponse::new(placement_result))
 }
 
 /// Cancel an order
 pub async fn cancel_order(
     State(state): State<Arc<AppState>>,
     Path(id): Path<Uuid>,
-) -> Result<Json<CancelOrderResponse>, ApiError> {
+) -> Result<ApiResponse<Order>, ApiError> {
     // Add logging for debugging
     tracing::info!("Attempting to cancel order: {}", id);
     
-    // Cancel the order with a timeout
+    // Cancel the order
     let order = state.matching_engine.cancel_order(id)
-    .map_err(ApiError::Common)?;
+        .map_err(ApiError::Common)?;
     
-    // Release reserved funds with a timeout
+    // Release reserved funds
     state.account_service.release_reserved_funds(&order).await
         .map_err(ApiError::Common)?;
     
-    // Update order book with a timeout
+    // Update order book
     if let Ok((bids, asks)) = state.matching_engine.get_market_depth(&order.market, 10) {
         state.market_data_service.update_order_book(&order.market, bids, asks)
             .await
             .map_err(ApiError::Common)?;
     }
     
-    // Return response
+    // Log success
     tracing::info!("Successfully canceled order: {}", id);
-    Ok(Json(CancelOrderResponse {
-        order: order.as_ref().clone(),
-    }))
-}
-
-/// Get order response
-#[derive(Debug, Serialize)]
-pub struct GetOrderResponse {
-    /// Order
-    pub order: Order,
+    
+    // Return standardized response with the canceled order
+    Ok(ApiResponse::new(order.as_ref().clone()))
 }
 
 /// Get an order by ID
 pub async fn get_order(
     State(state): State<Arc<AppState>>,
     Path(id): Path<Uuid>,
-) -> Result<Json<GetOrderResponse>, ApiError> {
+) -> Result<ApiResponse<Order>, ApiError> {
+    // Get order from matching engine
     let order = state.matching_engine.get_order(id)
         .ok_or_else(|| ApiError::NotFound(format!("Order not found: {}", id)))?;
     
-    Ok(Json(GetOrderResponse {
-        order: order.as_ref().clone(),
-    }))
+    // Return standardized response with the order
+    Ok(ApiResponse::new(order.as_ref().clone()))
 }
 
 /// Orders query parameters
@@ -183,22 +180,15 @@ fn default_orders_limit() -> usize {
     100
 }
 
-/// Get orders response
-#[derive(Debug, Serialize)]
-pub struct GetOrdersResponse {
-    /// Orders
-    pub orders: Vec<Order>,
-}
-
 /// Get orders for a user
 pub async fn get_orders(
     State(_state): State<Arc<AppState>>,
     Path(_user_id): Path<Uuid>,
     Query(_query): Query<OrdersQuery>,
-) -> Result<Json<GetOrdersResponse>, ApiError> {
+) -> Result<ApiListResponse<Order>, ApiError> {
     // TODO: Implement get orders by user ID and market
     // This is just a placeholder for MVP
-    Ok(Json(GetOrdersResponse {
-        orders: Vec::new(),
-    }))
+    
+    // Return empty list with standardized response format
+    Ok(ApiListResponse::new(Vec::new()))
 }

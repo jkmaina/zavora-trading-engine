@@ -46,13 +46,13 @@ All core services have been successfully integrated:
    - Account Service → Matching Engine integration
    - Matching Engine → Market Data Service integration
    - All services → API Gateway integration
-   - Consistent error handling across services
+   - Standardized error handling system with domain-specific error types
 
 2. **Database Integration** ✅
    - PostgreSQL schema implemented
    - Database connection management
-   - Transaction support for critical operations
-   - Test database configuration
+   - Unified transaction system with consistent rollback handling
+   - Test database configuration with in-memory transaction support
 
 3. **Deployment Integration** ✅
    - Docker compose configuration
@@ -147,6 +147,34 @@ cargo test -p matching-engine
 cargo test -p market-data
 ```
 
+## Error Handling System
+
+The trading engine implements a standardized error handling approach:
+
+### Common Error Types
+
+All services use a common error system defined in `common/error/mod.rs`, which provides:
+- Domain-specific error types (e.g., `MarketNotFound`, `InsufficientBalance`, `AccountNotFound`)
+- Context utilities with `ErrorExt` trait to add context to errors
+- Consistent error conversion through `IntoError` trait
+- Comprehensive mapping to HTTP status codes in the API gateway
+
+### Transaction Handling
+
+Database operations use a standardized transaction system:
+- `Transaction` trait for consistent transaction operations
+- `TransactionManager` trait for creating transactions
+- Implementations for both PostgreSQL and in-memory repositories
+- Consistent rollback pattern on errors
+
+### Best Practices
+
+When working with the error system:
+1. Use the most specific error type possible
+2. Add context to errors with `.with_context()`
+3. Handle transactions with proper rollback on errors
+4. Log errors with appropriate severity levels
+
 ## Conclusion
 
 The Zavora Trading Engine provides a comprehensive platform for order matching, account management, and market data processing. The system is built on a modular microservice architecture with clean separation of concerns.
@@ -156,6 +184,8 @@ Key strengths:
 - Asynchronous processing for high performance
 - Comprehensive testing infrastructure
 - Clean API design
+- Unified error handling system
+- Standardized transaction management
 
 Areas for improvement:
 - Production hardening and scalability

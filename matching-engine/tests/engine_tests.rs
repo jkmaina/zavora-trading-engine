@@ -1,7 +1,7 @@
 use std::sync::Arc;
 use uuid::Uuid;
 use common::decimal::{Price, Quantity};
-use common::model::order::{Order, OrderStatus, OrderType, Side, TimeInForce};
+use common::model::order::{Order, Status, OrderType, Side, TimeInForce};
 use matching_engine::engine::MatchingEngine;
 
 fn create_test_order(
@@ -22,7 +22,7 @@ fn create_test_order(
         quantity,
         remaining_quantity: quantity,
         filled_quantity: Quantity::ZERO,
-        status: OrderStatus::Open,
+        status: Status::New,
         time_in_force: TimeInForce::GTC,
         created_at: chrono::Utc::now(),
         updated_at: chrono::Utc::now(),
@@ -174,7 +174,7 @@ fn test_partial_fill() {
     let stored_sell = stored_sell_order.unwrap();
     assert_eq!(stored_sell.remaining_quantity, Quantity::new(1, 0));
     assert_eq!(stored_sell.filled_quantity, Quantity::new(1, 0));
-    assert_eq!(stored_sell.status, OrderStatus::PartiallyFilled);
+    assert_eq!(stored_sell.status, Status::PartiallyFilled);
 }
 
 #[test]
@@ -246,7 +246,7 @@ fn test_cancel_order() {
     
     let cancelled_order = cancel_result.unwrap();
     assert_eq!(cancelled_order.id, order.id);
-    assert_eq!(cancelled_order.status, OrderStatus::Cancelled);
+    assert_eq!(cancelled_order.status, Status::Cancelled);
     
     // Try to cancel again (should fail)
     let cancel_again = engine.cancel_order(order.id);

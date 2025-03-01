@@ -111,7 +111,7 @@ impl MatchingEngine {
             
             Ok((bids, asks))
         } else {
-            Err(Error::Internal(format!("Market not found: {}", market)))
+            Err(Error::MarketNotFound(format!("Market not found: {}", market)))
         }
     }
     
@@ -121,7 +121,7 @@ impl MatchingEngine {
         let order_book = match self.order_books.get(&order.market) {
             Some(ob) => ob.clone(),
             None => {
-                return Err(Error::Internal(format!("Market not found: {}", order.market)));
+                return Err(Error::MarketNotFound(format!("Market not found: {}", order.market)));
             }
         };
         
@@ -156,7 +156,7 @@ impl MatchingEngine {
         };
         
         if is_empty {
-            return Err(Error::Internal(format!(
+            return Err(Error::ValidationError(format!(
                 "Cannot execute market {} order, no liquidity", 
                 if side == Side::Buy { "buy" } else { "sell" }
             )));

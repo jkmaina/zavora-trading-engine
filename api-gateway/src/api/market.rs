@@ -1,31 +1,30 @@
 //! Market API handlers
+//!
+//! Handlers for market data endpoints including:
+//! - List all markets
+//! - Get order book data
+//! - Get market ticker information
+//! - Retrieve market trades
+//! - Get OHLCV candles
 
 use std::sync::Arc;
 
 use axum::{
     extract::{Path, Query, State},
-    Json,
 };
-use market_data::CandleInterval;
+use market_data::{CandleInterval, Ticker, TradeMessage, Candle};
 use serde::{Deserialize, Serialize};
 
 use crate::error::ApiError;
 use crate::AppState;
-
-/// Get markets response
-#[derive(Debug, Serialize)]
-pub struct GetMarketsResponse {
-    /// Markets
-    pub markets: Vec<common::model::market::Market>,
-}
+use crate::api::response::{ApiResponse, ApiListResponse};
 
 /// Get all markets
 pub async fn get_markets(
     State(state): State<Arc<AppState>>,
-) -> Result<Json<GetMarketsResponse>, ApiError> {
-    Ok(Json(GetMarketsResponse {
-        markets: state.markets.clone(),
-    }))
+) -> Result<ApiListResponse<common::model::market::Market>, ApiError> {
+    // Return a standardized list response with all markets
+    Ok(ApiListResponse::new(state.markets.clone()))
 }
 
 /// Order book query parameters
@@ -40,10 +39,10 @@ fn default_depth() -> usize {
     10
 }
 
-/// Get order book response
+/// Order book data structure
 #[derive(Debug, Serialize)]
-pub struct GetOrderBookResponse {
-    /// Market
+pub struct OrderBookData {
+    /// Market symbol
     pub market: String,
     /// Bids (price, quantity)
     pub bids: Vec<(common::decimal::Price, common::decimal::Quantity)>,
@@ -56,49 +55,44 @@ pub async fn get_order_book(
     State(state): State<Arc<AppState>>,
     Path(market): Path<String>,
     Query(query): Query<OrderBookQuery>,
-) -> Result<Json<GetOrderBookResponse>, ApiError> {
+) -> Result<ApiResponse<OrderBookData>, ApiError> {
+    // Get market depth from matching engine
     let (bids, asks) = state.matching_engine.get_market_depth(&market, query.depth)
         .map_err(ApiError::Common)?;
     
-    Ok(Json(GetOrderBookResponse {
+    // Create order book data
+    let order_book = OrderBookData {
         market,
         bids,
         asks,
-    }))
+    };
+    
+    // Return standardized response
+    Ok(ApiResponse::new(order_book))
 }
 
-/// Get ticker response
-#[derive(Debug, Serialize)]
-pub struct GetTickerResponse {
-    /// Ticker
-    pub ticker: market_data::Ticker,
-}
-
-/// Get ticker
+/// Get ticker for a market
 pub async fn get_ticker(
     State(state): State<Arc<AppState>>,
     Path(market): Path<String>,
-) -> Result<Json<GetTickerResponse>, ApiError> {
+) -> Result<ApiResponse<Ticker>, ApiError> {
+    // Get ticker from market data service
     let ticker = state.market_data_service.get_ticker(&market)
         .ok_or_else(|| ApiError::NotFound(format!("Ticker not found for market: {}", market)))?;
     
-    Ok(Json(GetTickerResponse { ticker }))
-}
-
-/// Get tickers response
-#[derive(Debug, Serialize)]
-pub struct GetTickersResponse {
-    /// Tickers
-    pub tickers: Vec<market_data::Ticker>,
+    // Return standardized response
+    Ok(ApiResponse::new(ticker))
 }
 
 /// Get all tickers
 pub async fn get_tickers(
     State(state): State<Arc<AppState>>,
-) -> Result<Json<GetTickersResponse>, ApiError> {
+) -> Result<ApiListResponse<Ticker>, ApiError> {
+    // Get all tickers from market data service
     let tickers = state.market_data_service.get_all_tickers();
     
-    Ok(Json(GetTickersResponse { tickers }))
+    // Return standardized list response
+    Ok(ApiListResponse::new(tickers))
 }
 
 /// Trades query parameters
@@ -113,13 +107,13 @@ fn default_trades_limit() -> usize {
     100
 }
 
-/// Get trades response
+/// Trade data structure with market information
 #[derive(Debug, Serialize)]
-pub struct GetTradesResponse {
-    /// Market
+pub struct MarketTradesData {
+    /// Market symbol
     pub market: String,
-    /// Trades
-    pub trades: Vec<market_data::TradeMessage>,
+    /// List of trades
+    pub trades: Vec<TradeMessage>,
 }
 
 /// Get recent trades
@@ -127,10 +121,18 @@ pub async fn get_trades(
     State(state): State<Arc<AppState>>,
     Path(market): Path<String>,
     Query(query): Query<TradesQuery>,
-) -> Result<Json<GetTradesResponse>, ApiError> {
+) -> Result<ApiResponse<MarketTradesData>, ApiError> {
+    // Get recent trades from market data service
     let trades = state.market_data_service.get_recent_trades(&market, query.limit);
     
-    Ok(Json(GetTradesResponse { market, trades }))
+    // Create trade data with market info
+    let trade_data = MarketTradesData {
+        market,
+        trades,
+    };
+    
+    // Return standardized response
+    Ok(ApiResponse::new(trade_data))
 }
 
 /// Candles query parameters
@@ -152,23 +154,24 @@ fn default_candles_limit() -> usize {
     100
 }
 
-/// Get candles response
+/// Market candle data structure
 #[derive(Debug, Serialize)]
-pub struct GetCandlesResponse {
-    /// Market
+pub struct MarketCandleData {
+    /// Market symbol
     pub market: String,
-    /// Interval
+    /// Time interval
     pub interval: String,
-    /// Candles
-    pub candles: Vec<market_data::Candle>,
+    /// List of candles
+    pub candles: Vec<Candle>,
 }
 
-/// Get candles
+/// Get candles for a market
 pub async fn get_candles(
     State(state): State<Arc<AppState>>,
     Path(market): Path<String>,
     Query(query): Query<CandlesQuery>,
-) -> Result<Json<GetCandlesResponse>, ApiError> {
+) -> Result<ApiResponse<MarketCandleData>, ApiError> {
+    // Parse the interval string
     let interval = match query.interval.as_str() {
         "1m" => CandleInterval::Minute1,
         "5m" => CandleInterval::Minute5,
@@ -182,11 +185,16 @@ pub async fn get_candles(
         _ => return Err(ApiError::BadRequest(format!("Invalid interval: {}", query.interval))),
     };
     
+    // Get candles from market data service
     let candles = state.market_data_service.get_candles(&market, interval, query.limit);
     
-    Ok(Json(GetCandlesResponse {
+    // Create candle data
+    let candle_data = MarketCandleData {
         market,
         interval: query.interval,
         candles,
-    }))
+    };
+    
+    // Return standardized response
+    Ok(ApiResponse::new(candle_data))
 }

@@ -83,17 +83,19 @@ let api_routes = axum::Router::new()
     .route("/orders", axum::routing::post(api::order::place_order));
 ```
 
-Each handler is an async function that receives the app state and request parameters:
+Each handler is an async function that follows a standard structure with consistent parameter ordering:
 
 ```rust
 pub async fn create_account(
-    State(state): State<Arc<AppState>>,
-    Json(request): Json<CreateAccountRequest>,
-) -> Result<Json<CreateAccountResponse>, ApiError> {
+    State(state): State<Arc<AppState>>,          // State always comes first
+    Json(request): Json<CreateAccountRequest>,   // Request body comes last
+) -> Result<ApiResponse<Account>, ApiError> {    // Standardized return type
+    // Call the service
     let account = state.account_service.create_account().await
         .map_err(ApiError::Common)?;
     
-    Ok(Json(CreateAccountResponse { account }))
+    // Return a standardized response
+    Ok(ApiResponse::new(account))
 }
 ```
 
@@ -117,6 +119,45 @@ WebSocket messages follow a standard format:
   "op": "subscribe",
   "channel": "orderbook",
   "market": "BTC/USD"
+}
+```
+
+### Standardized Responses
+
+All API responses follow a consistent format to improve predictability for clients:
+
+#### Single Resource Response
+
+```json
+{
+  "data": {
+    "id": "123e4567-e89b-12d3-a456-426614174000",
+    "property1": "value1",
+    "property2": "value2"
+  },
+  "meta": {
+    "request_id": "7f5d0fde-9c9a-4b6a-8c1a-6b5f3c5e1d2a"
+  }
+}
+```
+
+#### Collection Response
+
+```json
+{
+  "data": [
+    {
+      "id": "123e4567-e89b-12d3-a456-426614174000",
+      "property1": "value1"
+    },
+    {
+      "id": "223e4567-e89b-12d3-a456-426614174000",
+      "property1": "value2"
+    }
+  ],
+  "meta": {
+    "request_id": "7f5d0fde-9c9a-4b6a-8c1a-6b5f3c5e1d2a"
+  }
 }
 ```
 
@@ -151,8 +192,11 @@ Error responses are formatted as JSON:
 
 ```json
 {
-  "code": "not_found",
-  "message": "Account not found: 123e4567-e89b-12d3-a456-426614174000",
+  "error": {
+    "code": "not_found",
+    "message": "Account not found: 123e4567-e89b-12d3-a456-426614174000",
+    "details": null
+  },
   "request_id": "9f83c01a-1234-5678-9abc-def012345678"
 }
 ```
@@ -175,10 +219,13 @@ HTTP/1.1 200 OK
 Content-Type: application/json
 
 {
-  "account": {
+  "data": {
     "id": "123e4567-e89b-12d3-a456-426614174000",
     "created_at": "2025-02-27T12:34:56Z",
     "updated_at": "2025-02-27T12:34:56Z"
+  },
+  "meta": {
+    "request_id": "7f5d0fde-9c9a-4b6a-8c1a-6b5f3c5e1d2a"
   }
 }
 ```
@@ -206,22 +253,27 @@ HTTP/1.1 200 OK
 Content-Type: application/json
 
 {
-  "order": {
-    "id": "abcdef12-3456-7890-abcd-ef1234567890",
-    "user_id": "123e4567-e89b-12d3-a456-426614174000",
-    "market": "BTC/USD",
-    "side": "buy",
-    "order_type": "limit",
-    "price": "20000",
-    "quantity": "0.1",
-    "remaining_quantity": "0.1",
-    "filled_quantity": "0",
-    "status": "new",
-    "time_in_force": "GTC",
-    "created_at": "2025-02-27T12:34:56Z",
-    "updated_at": "2025-02-27T12:34:56Z"
+  "data": {
+    "order": {
+      "id": "abcdef12-3456-7890-abcd-ef1234567890",
+      "user_id": "123e4567-e89b-12d3-a456-426614174000",
+      "market": "BTC/USD",
+      "side": "buy",
+      "order_type": "limit",
+      "price": "20000",
+      "quantity": "0.1",
+      "remaining_quantity": "0.1",
+      "filled_quantity": "0",
+      "status": "new",
+      "time_in_force": "GTC",
+      "created_at": "2025-02-27T12:34:56Z",
+      "updated_at": "2025-02-27T12:34:56Z"
+    },
+    "trades": []
   },
-  "trades": []
+  "meta": {
+    "request_id": "7f5d0fde-9c9a-4b6a-8c1a-6b5f3c5e1d2a"
+  }
 }
 ```
 

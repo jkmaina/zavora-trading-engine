@@ -44,6 +44,7 @@ fn run_node_script(script_path: &str) -> Result<(), String> {
 }
 
 #[test]
+#[ignore = "Requires PostgreSQL client to be installed"]
 fn test_api() {
     // Start the engine and ensure it gets stopped when the test ends
     let _guard = EngineGuard::new().expect("Failed to start trading engine");

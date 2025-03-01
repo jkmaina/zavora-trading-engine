@@ -35,7 +35,7 @@ pub enum TimeInForce {
 
 /// Order status
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-pub enum OrderStatus {
+pub enum Status {
     /// Order has been received but not yet processed
     New,
     /// Order is being processed
@@ -74,7 +74,7 @@ pub struct Order {
     /// Time in force
     pub time_in_force: TimeInForce,
     /// Current status
-    pub status: OrderStatus,
+    pub status: Status,
     /// Creation timestamp
     pub created_at: DateTime<Utc>,
     /// Last update timestamp
@@ -104,7 +104,7 @@ impl Order {
             filled_quantity: Quantity::ZERO,
             average_fill_price: None,
             time_in_force,
-            status: OrderStatus::New,
+            status: Status::New,
             created_at: now,
             updated_at: now,
         }
@@ -130,7 +130,7 @@ impl Order {
             filled_quantity: Quantity::ZERO,
             average_fill_price: None,
             time_in_force: TimeInForce::IOC, // Market orders are IOC by default
-            status: OrderStatus::New,
+            status: Status::New,
             created_at: now,
             updated_at: now,
         }
@@ -138,11 +138,11 @@ impl Order {
     
     /// Check if the order is fully filled
     pub fn is_filled(&self) -> bool {
-        self.remaining_quantity.is_zero() || self.status == OrderStatus::Filled
+        self.remaining_quantity.is_zero() || self.status == Status::Filled
     }
     
     /// Check if the order is active (can be matched)
     pub fn is_active(&self) -> bool {
-        matches!(self.status, OrderStatus::New | OrderStatus::PartiallyFilled)
+        matches!(self.status, Status::New | Status::PartiallyFilled)
     }
 }
