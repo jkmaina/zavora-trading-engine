@@ -1,5 +1,25 @@
 # Zavora Trading Engine Release Notes
 
+## v0.1.1 (Cloud Deployment Update)
+
+### Features
+- Complete cloud deployment infrastructure for AWS and GCP
+- Kubernetes manifests for all microservices
+- Terraform configurations for AWS and GCP infrastructure
+- Automated deployment scripts for building and deploying
+- Comprehensive deployment documentation
+
+### Components
+- K8s manifests for all services
+- Terraform modules for cloud resources
+- Deployment scripts for CI/CD
+
+### Infrastructure
+- EKS/GKE for container orchestration
+- RDS/Cloud SQL for PostgreSQL database
+- ElastiCache/Memorystore for Redis
+- ECR/Artifact Registry for container images
+
 ## v0.1.0 (Initial Release)
 
 ### Features
