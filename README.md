@@ -123,6 +123,11 @@ The Zavora Trading Engine is built on a modular microservices architecture for f
   
   # HTTP testing utility
   cargo install httpie
+  
+  # Node.js for WebSocket testing
+  curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+  sudo apt-get install -y nodejs
+  npm install ws
   ```
 
 ### Building the Project
@@ -460,6 +465,29 @@ If API tests don't work after starting the Docker containers:
    ```bash
    docker logs zavora-trading-engine-postgres-1
    ```
+
+### WebSocket Test Failures
+
+If you encounter WebSocket test failures like:
+
+```
+WebSocket test failed: "Failed to execute Node.js script: No such file or directory (os error 2)"
+```
+
+Install Node.js and npm:
+
+```bash
+# On Ubuntu/Debian
+curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+sudo apt-get install -y nodejs
+
+# Verify installation
+node --version
+npm --version
+
+# Install WebSocket dependencies
+npm install ws
+```
 
 ## License
 
