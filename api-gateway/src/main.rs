@@ -20,6 +20,8 @@ use tower_http::cors::{Any, CorsLayer};
 use tower_http::trace::TraceLayer;
 use tracing::{info, Level};
 use tracing_subscriber::FmtSubscriber;
+use utoipa::OpenApi;
+use utoipa_swagger_ui::SwaggerUi;
 
 use account_service::AccountService;
 use market_data::MarketDataService;
@@ -32,6 +34,85 @@ use crate::api::{
 };
 use crate::config::AppConfig;
 use crate::ws::handler::ws_handler;
+
+/// API documentation
+#[derive(OpenApi)]
+#[openapi(
+    paths(
+        // Account routes
+        api::account::create_account,
+        api::account::get_account,
+        api::account::get_balances,
+        api::account::deposit,
+        api::account::withdraw,
+        // Market routes
+        api::market::get_markets,
+        api::market::get_order_book,
+        api::market::get_ticker,
+        api::market::get_tickers,
+        api::market::get_trades,
+        api::market::get_candles,
+        // Order routes
+        api::order::place_order,
+        api::order::cancel_order,
+        api::order::get_order,
+        api::order::get_orders,
+    ),
+    components(
+        schemas(
+            // Account API
+            api::account::CreateAccountRequest,
+            api::account::DepositRequest,
+            api::account::WithdrawRequest,
+            common::model::account::Account,
+            common::model::account::Balance,
+            
+            // Order API
+            api::order::PlaceOrderRequest,
+            api::order::OrderPlacementResult,
+            api::order::OrdersQuery,
+            common::model::order::Order,
+            common::model::order::TimeInForce,
+            common::model::order::Side,
+            common::model::order::OrderType,
+            common::model::trade::Trade,
+            
+            // Market API
+            api::market::OrderBookQuery,
+            api::market::OrderBookData,
+            api::market::TradesQuery,
+            api::market::MarketTradesData,
+            api::market::CandlesQuery,
+            api::market::MarketCandleData,
+            market_data::Ticker,
+            market_data::Candle,
+            market_data::CandleInterval,
+            common::model::market::Market,
+            
+            // Response models
+            api::response::ApiResponse<common::model::account::Account>,
+            api::response::ApiResponse<common::model::order::Order>, 
+            api::response::ApiResponse<api::order::OrderPlacementResult>,
+            api::response::ApiListResponse<common::model::market::Market>,
+            api::response::ApiListResponse<common::model::order::Order>,
+            api::response::ApiListResponse<common::model::account::Balance>,
+            api::response::ApiListResponse<market_data::Ticker>,
+            api::response::ResponseMetadata,
+            api::response::PaginationMetadata
+        )
+    ),
+    tags(
+        (name = "account", description = "Account management endpoints"),
+        (name = "market", description = "Market data endpoints"),
+        (name = "order", description = "Order management endpoints")
+    ),
+    info(
+        title = "Trading Engine API",
+        version = "1.0.0",
+        description = "API for the trading engine allowing account management, order placement, and market data access"
+    )
+)]
+struct ApiDoc;
 
 /// Trading engine API server
 #[derive(Parser, Debug)]
@@ -119,10 +200,15 @@ async fn main() -> std::io::Result<()> {
     let ws_routes = Router::new()
         .route("/ws", get(ws_handler));
     
+    // Set up Swagger UI
+    let swagger_ui = SwaggerUi::new("/swagger-ui")
+        .url("/api-docs/openapi.json", ApiDoc::openapi());
+    
     // Combine all routes
     let app = Router::new()
         .nest("/api/v1", api_routes)
         .merge(ws_routes)
+        .merge(swagger_ui)
         .layer(cors)
         .layer(TraceLayer::new_for_http())
         .with_state(state);

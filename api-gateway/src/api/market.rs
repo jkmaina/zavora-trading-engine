@@ -20,6 +20,15 @@ use crate::AppState;
 use crate::api::response::{ApiResponse, ApiListResponse};
 
 /// Get all markets
+#[utoipa::path(
+    get,
+    path = "/api/v1/markets",
+    responses(
+        (status = 200, description = "List of available markets retrieved successfully"),
+        (status = 500, description = "Internal server error")
+    ),
+    tag = "market"
+)]
 pub async fn get_markets(
     State(state): State<Arc<AppState>>,
 ) -> Result<ApiListResponse<common::model::market::Market>, ApiError> {
@@ -51,6 +60,20 @@ pub struct OrderBookData {
 }
 
 /// Get order book
+#[utoipa::path(
+    get,
+    path = "/api/v1/markets/{market}/order-book",
+    params(
+        ("market" = String, Path, description = "Market symbol"),
+        ("depth" = Option<usize>, Query, description = "Order book depth")
+    ),
+    responses(
+        (status = 200, description = "Order book retrieved successfully"),
+        (status = 404, description = "Market not found"),
+        (status = 500, description = "Internal server error")
+    ),
+    tag = "market"
+)]
 pub async fn get_order_book(
     State(state): State<Arc<AppState>>,
     Path(market): Path<String>,
@@ -72,6 +95,19 @@ pub async fn get_order_book(
 }
 
 /// Get ticker for a market
+#[utoipa::path(
+    get,
+    path = "/api/v1/markets/{market}/ticker",
+    params(
+        ("market" = String, Path, description = "Market symbol")
+    ),
+    responses(
+        (status = 200, description = "Ticker retrieved successfully"),
+        (status = 404, description = "Market not found"),
+        (status = 500, description = "Internal server error")
+    ),
+    tag = "market"
+)]
 pub async fn get_ticker(
     State(state): State<Arc<AppState>>,
     Path(market): Path<String>,
@@ -85,6 +121,15 @@ pub async fn get_ticker(
 }
 
 /// Get all tickers
+#[utoipa::path(
+    get,
+    path = "/api/v1/markets/tickers",
+    responses(
+        (status = 200, description = "All tickers retrieved successfully"),
+        (status = 500, description = "Internal server error")
+    ),
+    tag = "market"
+)]
 pub async fn get_tickers(
     State(state): State<Arc<AppState>>,
 ) -> Result<ApiListResponse<Ticker>, ApiError> {
@@ -117,6 +162,20 @@ pub struct MarketTradesData {
 }
 
 /// Get recent trades
+#[utoipa::path(
+    get,
+    path = "/api/v1/markets/{market}/trades",
+    params(
+        ("market" = String, Path, description = "Market symbol"),
+        ("limit" = Option<usize>, Query, description = "Maximum number of trades to return")
+    ),
+    responses(
+        (status = 200, description = "Trades retrieved successfully"),
+        (status = 404, description = "Market not found"),
+        (status = 500, description = "Internal server error")
+    ),
+    tag = "market"
+)]
 pub async fn get_trades(
     State(state): State<Arc<AppState>>,
     Path(market): Path<String>,
@@ -166,6 +225,22 @@ pub struct MarketCandleData {
 }
 
 /// Get candles for a market
+#[utoipa::path(
+    get,
+    path = "/api/v1/markets/{market}/candles",
+    params(
+        ("market" = String, Path, description = "Market symbol"),
+        ("interval" = Option<String>, Query, description = "Candle interval (1m, 5m, 15m, 30m, 1h, 4h, 12h, 1d, 1w)"),
+        ("limit" = Option<usize>, Query, description = "Maximum number of candles to return")
+    ),
+    responses(
+        (status = 200, description = "Candles retrieved successfully"),
+        (status = 404, description = "Market not found"),
+        (status = 400, description = "Invalid interval"),
+        (status = 500, description = "Internal server error")
+    ),
+    tag = "market"
+)]
 pub async fn get_candles(
     State(state): State<Arc<AppState>>,
     Path(market): Path<String>,

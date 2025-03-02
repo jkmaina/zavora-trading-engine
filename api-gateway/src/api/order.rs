@@ -55,6 +55,17 @@ pub struct OrderPlacementResult {
 }
 
 /// Place a new order
+#[utoipa::path(
+    post,
+    path = "/api/v1/orders",
+    request_body = PlaceOrderRequest,
+    responses(
+        (status = 200, description = "Order placed successfully"),
+        (status = 400, description = "Invalid order request"),
+        (status = 500, description = "Internal server error")
+    ),
+    tag = "order"
+)]
 pub async fn place_order(
     State(state): State<Arc<AppState>>,
     Json(request): Json<PlaceOrderRequest>,
@@ -122,6 +133,19 @@ pub async fn place_order(
 }
 
 /// Cancel an order
+#[utoipa::path(
+    post,
+    path = "/api/v1/orders/{id}",
+    params(
+        ("id" = Uuid, Path, description = "Order ID to cancel")
+    ),
+    responses(
+        (status = 200, description = "Order canceled successfully"),
+        (status = 404, description = "Order not found"),
+        (status = 500, description = "Internal server error")
+    ),
+    tag = "order"
+)]
 pub async fn cancel_order(
     State(state): State<Arc<AppState>>,
     Path(id): Path<Uuid>,
@@ -152,6 +176,19 @@ pub async fn cancel_order(
 }
 
 /// Get an order by ID
+#[utoipa::path(
+    get,
+    path = "/api/v1/orders/{id}",
+    params(
+        ("id" = Uuid, Path, description = "Order ID")
+    ),
+    responses(
+        (status = 200, description = "Order retrieved successfully"),
+        (status = 404, description = "Order not found"),
+        (status = 500, description = "Internal server error")
+    ),
+    tag = "order"
+)]
 pub async fn get_order(
     State(state): State<Arc<AppState>>,
     Path(id): Path<Uuid>,
@@ -181,6 +218,21 @@ fn default_orders_limit() -> usize {
 }
 
 /// Get orders for a user
+#[utoipa::path(
+    get,
+    path = "/api/v1/accounts/{id}/orders",
+    params(
+        ("id" = Uuid, Path, description = "User ID"),
+        ("market" = Option<String>, Query, description = "Filter by market"),
+        ("limit" = Option<usize>, Query, description = "Maximum number of orders to return")
+    ),
+    responses(
+        (status = 200, description = "Orders retrieved successfully"),
+        (status = 404, description = "User not found"),
+        (status = 500, description = "Internal server error")
+    ),
+    tag = "order"
+)]
 pub async fn get_orders(
     State(_state): State<Arc<AppState>>,
     Path(_user_id): Path<Uuid>,

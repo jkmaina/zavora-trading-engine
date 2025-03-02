@@ -26,6 +26,17 @@ use crate::api::response::{ApiResponse, ApiListResponse};
 pub struct CreateAccountRequest {}
 
 /// Create a new account
+#[utoipa::path(
+    post,
+    path = "/api/v1/accounts",
+    request_body = CreateAccountRequest,
+    responses(
+        (status = 200, description = "Account successfully created"),
+        (status = 400, description = "Bad request"),
+        (status = 500, description = "Internal server error")
+    ),
+    tag = "account"
+)]
 pub async fn create_account(
     State(state): State<Arc<AppState>>,
     Json(_request): Json<CreateAccountRequest>,
@@ -39,6 +50,19 @@ pub async fn create_account(
 }
 
 /// Get an account by ID
+#[utoipa::path(
+    get,
+    path = "/api/v1/accounts/{id}",
+    params(
+        ("id" = Uuid, Path, description = "Account ID")
+    ),
+    responses(
+        (status = 200, description = "Account details retrieved successfully"),
+        (status = 404, description = "Account not found"),
+        (status = 500, description = "Internal server error")
+    ),
+    tag = "account"
+)]
 pub async fn get_account(
     State(state): State<Arc<AppState>>,
     Path(id): Path<Uuid>,
@@ -53,6 +77,19 @@ pub async fn get_account(
 }
 
 /// Get all balances for an account
+#[utoipa::path(
+    get,
+    path = "/api/v1/accounts/{id}/balances",
+    params(
+        ("id" = Uuid, Path, description = "Account ID")
+    ),
+    responses(
+        (status = 200, description = "Account balances retrieved successfully"),
+        (status = 404, description = "Account not found"),
+        (status = 500, description = "Internal server error")
+    ),
+    tag = "account"
+)]
 pub async fn get_balances(
     State(state): State<Arc<AppState>>,
     Path(id): Path<Uuid>,
@@ -80,6 +117,21 @@ pub struct DepositRequest {
 }
 
 /// Deposit funds into an account
+#[utoipa::path(
+    post,
+    path = "/api/v1/accounts/{id}/deposit",
+    params(
+        ("id" = Uuid, Path, description = "Account ID")
+    ),
+    request_body = DepositRequest,
+    responses(
+        (status = 200, description = "Funds deposited successfully"),
+        (status = 404, description = "Account not found"),
+        (status = 400, description = "Invalid deposit request"),
+        (status = 500, description = "Internal server error")
+    ),
+    tag = "account"
+)]
 pub async fn deposit(
     State(state): State<Arc<AppState>>,
     Path(id): Path<Uuid>,
@@ -103,6 +155,21 @@ pub struct WithdrawRequest {
 }
 
 /// Withdraw funds from an account
+#[utoipa::path(
+    post,
+    path = "/api/v1/accounts/{id}/withdraw",
+    params(
+        ("id" = Uuid, Path, description = "Account ID")
+    ),
+    request_body = WithdrawRequest,
+    responses(
+        (status = 200, description = "Funds withdrawn successfully"),
+        (status = 404, description = "Account not found"),
+        (status = 400, description = "Invalid withdrawal request or insufficient funds"),
+        (status = 500, description = "Internal server error")
+    ),
+    tag = "account"
+)]
 pub async fn withdraw(
     State(state): State<Arc<AppState>>,
     Path(id): Path<Uuid>,

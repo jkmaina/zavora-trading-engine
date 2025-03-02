@@ -255,6 +255,21 @@ See `migrations/20240227000000_initial_schema.sql` for the complete schema.
 
 ## API Documentation
 
+### Swagger UI
+
+The API Gateway includes Swagger UI for interactive API exploration and testing. You can access the Swagger documentation at:
+
+```
+http://localhost:8080/swagger-ui/
+```
+
+Key features of the Swagger documentation:
+- Interactive API explorer
+- Request/response examples
+- Schema definitions for all data models
+- Try-it-out functionality to test API calls directly from the browser
+- OpenAPI specification available at `/openapi.json`
+
 ### REST API Endpoints
 
 The API Gateway exposes the following RESTful endpoints:
