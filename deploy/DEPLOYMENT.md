@@ -34,7 +34,7 @@ cat > terraform.tfvars << EOF
 region      = "us-west-2"
 environment = "dev"
 db_username = "zavora"
-db_password = "Zavora$1010$"
+db_password = ""
 EOF
 
 # Plan the deployment

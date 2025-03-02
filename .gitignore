@@ -11,3 +11,5 @@ project_consistency_analysis.md
 .terraform/
 .terraform.lock.hcl
 tfplan
+terraform.tfvars
+node_modules/
