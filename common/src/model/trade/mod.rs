@@ -6,9 +6,12 @@ use uuid::Uuid;
 
 use crate::decimal::{Price, Quantity, Amount};
 use crate::model::order::Side;
+#[cfg(feature = "utoipa")]
+use crate::utoipa::ToSchema;
 
 /// Trade model representing a matched order
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "utoipa", derive(ToSchema))]
 pub struct Trade {
     /// Unique trade ID
     pub id: Uuid,

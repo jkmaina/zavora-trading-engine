@@ -14,6 +14,7 @@ use axum::{
 };
 use market_data::{CandleInterval, Ticker, TradeMessage, Candle};
 use serde::{Deserialize, Serialize};
+use utoipa::ToSchema;
 
 use crate::error::ApiError;
 use crate::AppState;
@@ -37,7 +38,7 @@ pub async fn get_markets(
 }
 
 /// Order book query parameters
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, ToSchema)]
 pub struct OrderBookQuery {
     /// Depth limit
     #[serde(default = "default_depth")]
@@ -49,7 +50,7 @@ fn default_depth() -> usize {
 }
 
 /// Order book data structure
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, ToSchema)]
 pub struct OrderBookData {
     /// Market symbol
     pub market: String,
@@ -141,7 +142,7 @@ pub async fn get_tickers(
 }
 
 /// Trades query parameters
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, ToSchema)]
 pub struct TradesQuery {
     /// Limit
     #[serde(default = "default_trades_limit")]
@@ -153,7 +154,7 @@ fn default_trades_limit() -> usize {
 }
 
 /// Trade data structure with market information
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, ToSchema)]
 pub struct MarketTradesData {
     /// Market symbol
     pub market: String,
@@ -195,7 +196,7 @@ pub async fn get_trades(
 }
 
 /// Candles query parameters
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, ToSchema)]
 pub struct CandlesQuery {
     /// Interval
     #[serde(default = "default_interval")]
@@ -214,7 +215,7 @@ fn default_candles_limit() -> usize {
 }
 
 /// Market candle data structure
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, ToSchema)]
 pub struct MarketCandleData {
     /// Market symbol
     pub market: String,

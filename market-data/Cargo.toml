@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-common = { path = "../common" }
+common = { path = "../common", features = ["utoipa"] }
 serde = { workspace = true }
 serde_json = { workspace = true }
 tracing = { workspace = true }
@@ -19,3 +19,8 @@ async-trait = "0.1.77"
 tokio-stream = "0.1.14"
 futures = "0.3.30"
 crossbeam-channel = "0.5.10"
+utoipa = { workspace = true, optional = true }
+
+[features]
+default = []
+utoipa = ["dep:utoipa"]

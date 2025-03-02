@@ -7,9 +7,10 @@ use axum::response::{IntoResponse, Response};
 use axum::Json;
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
+use utoipa::ToSchema;
 
 /// A standardized API response wrapper for single resource responses
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub struct ApiResponse<T> {
     /// The response data
     pub data: T,
@@ -19,7 +20,7 @@ pub struct ApiResponse<T> {
 }
 
 /// Additional metadata about the response
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub struct ResponseMetadata {
     /// Optional request ID for tracking
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -30,7 +31,7 @@ pub struct ResponseMetadata {
 }
 
 /// A standardized API response wrapper for list/collection responses
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub struct ApiListResponse<T> {
     /// The list of items
     pub data: Vec<T>,
@@ -40,7 +41,7 @@ pub struct ApiListResponse<T> {
 }
 
 /// A standardized API response wrapper for paginated list responses
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub struct PaginatedResponse<T> {
     /// The list of items in this page
     pub data: Vec<T>,
@@ -52,7 +53,7 @@ pub struct PaginatedResponse<T> {
 }
 
 /// Pagination metadata
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub struct PaginationMetadata {
     /// The current page number (1-based)
     pub page: usize,

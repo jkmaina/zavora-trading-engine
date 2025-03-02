@@ -15,3 +15,7 @@ pub use decimal::*;
 
 // Re-export database types
 pub use db::transaction::{DBTransaction, TransactionManager};
+
+// Re-export utoipa for use in model ToSchema derives
+#[cfg(feature = "utoipa")]
+pub use utoipa;

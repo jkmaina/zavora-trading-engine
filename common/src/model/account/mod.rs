@@ -5,9 +5,12 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 use crate::decimal::Quantity;
+#[cfg(feature = "utoipa")]
+use crate::utoipa::ToSchema;
 
 /// Account model
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "utoipa", derive(ToSchema))]
 pub struct Account {
     /// Unique account ID
     pub id: Uuid,
@@ -19,6 +22,7 @@ pub struct Account {
 
 /// Balance model
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "utoipa", derive(ToSchema))]
 pub struct Balance {
     /// Account ID
     pub account_id: Uuid,

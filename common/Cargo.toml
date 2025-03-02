@@ -14,3 +14,8 @@ rust_decimal_macros = { workspace = true }
 tracing = { workspace = true }
 sqlx = { workspace = true }
 async-trait = "0.1.78"
+utoipa = { workspace = true, optional = true }
+
+[features]
+default = []
+utoipa = ["dep:utoipa"]

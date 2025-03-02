@@ -5,9 +5,12 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 use crate::decimal::{Price, Quantity};
+#[cfg(feature = "utoipa")]
+use crate::utoipa::ToSchema;
 
 /// Order side (buy or sell)
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "utoipa", derive(ToSchema))]
 pub enum Side {
     Buy,
     Sell,
@@ -15,6 +18,7 @@ pub enum Side {
 
 /// Order type
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "utoipa", derive(ToSchema))]
 pub enum OrderType {
     /// Market order to be executed immediately at the current market price
     Market,
@@ -24,6 +28,7 @@ pub enum OrderType {
 
 /// Order time in force
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "utoipa", derive(ToSchema))]
 pub enum TimeInForce {
     /// Good till cancelled
     GTC,
@@ -35,6 +40,7 @@ pub enum TimeInForce {
 
 /// Order status
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "utoipa", derive(ToSchema))]
 pub enum Status {
     /// Order has been received but not yet processed
     New,
@@ -50,6 +56,7 @@ pub enum Status {
 
 /// Order model
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "utoipa", derive(ToSchema))]
 pub struct Order {
     /// Unique order ID
     pub id: Uuid,

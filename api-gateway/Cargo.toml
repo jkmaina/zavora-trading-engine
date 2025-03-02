@@ -4,10 +4,10 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-common = { path = "../common" }
+common = { path = "../common", features = ["utoipa"] }
 matching-engine = { path = "../matching-engine" }
 account-service = { path = "../account-service" }
-market-data = { path = "../market-data" }
+market-data = { path = "../market-data", features = ["utoipa"] }
 
 serde = { workspace = true }
 serde_json = { workspace = true }

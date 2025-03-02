@@ -5,3 +5,4 @@ Cargo.lock
 .aider*
 devfile.yaml
 project_consistency_analysis.md
+.log

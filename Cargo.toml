@@ -34,6 +34,7 @@ rust_decimal = { version = "1.33.1", features = ["serde"] }
 rust_decimal_macros = "1.33.1"
 clap = { version = "4.4.11", features = ["derive"] }
 dotenv = "0.15.0"
+utoipa = { version = "4.1", features = ["uuid", "decimal", "chrono"] }
 
 # Testing dependencies
 [dev-dependencies]

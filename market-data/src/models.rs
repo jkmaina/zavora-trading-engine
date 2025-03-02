@@ -6,6 +6,9 @@ use common::model::trade::Trade;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
+#[cfg(feature = "utoipa")]
+use utoipa::ToSchema;
+
 /// Market depth (order book)
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MarketDepth {
@@ -76,6 +79,7 @@ impl From<&Trade> for TradeMessage {
 
 /// Market ticker
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "utoipa", derive(ToSchema))]
 pub struct Ticker {
     /// Market symbol
     pub market: String,
@@ -130,6 +134,7 @@ pub struct MarketSummary {
 
 /// Candle interval
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[cfg_attr(feature = "utoipa", derive(ToSchema))]
 pub enum CandleInterval {
     /// 1 minute
     Minute1,
@@ -170,6 +175,7 @@ impl CandleInterval {
 
 /// OHLCV candle
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "utoipa", derive(ToSchema))]
 pub struct Candle {
     /// Market symbol
     pub market: String,

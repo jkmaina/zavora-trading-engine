@@ -3,9 +3,12 @@
 use serde::{Deserialize, Serialize};
 
 use crate::decimal::{Price, Quantity};
+#[cfg(feature = "utoipa")]
+use crate::utoipa::ToSchema;
 
 /// Market configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "utoipa", derive(ToSchema))]
 pub struct Market {
     /// Market symbol (e.g., "BTC/USD")
     pub symbol: String,
@@ -27,6 +30,7 @@ pub struct Market {
 
 /// Market summary information
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "utoipa", derive(ToSchema))]
 pub struct MarketSummary {
     /// Market symbol
     pub symbol: String,

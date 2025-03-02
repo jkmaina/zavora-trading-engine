@@ -16,13 +16,14 @@ use common::decimal::Quantity;
 use common::model::account::{Account, Balance};
 use serde::Deserialize;
 use uuid::Uuid;
+use utoipa::ToSchema;
 
 use crate::error::ApiError;
 use crate::AppState;
 use crate::api::response::{ApiResponse, ApiListResponse};
 
 /// Create account request
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, ToSchema)]
 pub struct CreateAccountRequest {}
 
 /// Create a new account
@@ -108,7 +109,7 @@ pub async fn get_balances(
 }
 
 /// Deposit request
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, ToSchema)]
 pub struct DepositRequest {
     /// Asset
     pub asset: String,
@@ -146,7 +147,7 @@ pub async fn deposit(
 }
 
 /// Withdraw request
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, ToSchema)]
 pub struct WithdrawRequest {
     /// Asset
     pub asset: String,

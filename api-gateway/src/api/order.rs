@@ -16,13 +16,14 @@ use common::model::order::{Order, OrderType, Side, TimeInForce};
 use common::model::trade::Trade;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
+use utoipa::ToSchema;
 
 use crate::error::ApiError;
 use crate::AppState;
 use crate::api::response::{ApiResponse, ApiListResponse};
 
 /// Place order request
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, ToSchema)]
 pub struct PlaceOrderRequest {
     /// User ID
     pub user_id: Uuid,
@@ -46,7 +47,7 @@ fn default_time_in_force() -> TimeInForce {
 }
 
 /// Order placement result
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, ToSchema)]
 pub struct OrderPlacementResult {
     /// The placed order
     pub order: Order,
@@ -202,7 +203,7 @@ pub async fn get_order(
 }
 
 /// Orders query parameters
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, ToSchema)]
 pub struct OrdersQuery {
     /// Market
     #[allow(dead_code)]
