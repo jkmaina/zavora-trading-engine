@@ -80,6 +80,7 @@ module "elasticache" {
   source = "terraform-aws-modules/elasticache/aws"
   
   cluster_id           = "zavora-redis-${var.environment}"
+  replication_group_id = "zavora-redis-${var.environment}"
   engine               = "redis"
   engine_version       = "7.0"
   node_type            = "cache.t3.small"
