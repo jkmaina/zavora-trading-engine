@@ -6,8 +6,8 @@ Cargo.lock
 devfile.yaml
 project_consistency_analysis.md
 .log
-.sqlx
-.vscode
-.terraform
+.sqlx/
+.vscode/
+.terraform/
 .terraform.lock.hcl
 tfplan
