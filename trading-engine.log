@@ -1,0 +1,21 @@
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.25s
+     Running `target/debug/trading-engine --demo`
+[2m2025-03-02T06:54:01.618736Z[0m [32m INFO[0m [2mtrading_engine[0m[2m:[0m Tracing initialized
+[2m2025-03-02T06:54:01.618817Z[0m [32m INFO[0m [2mtrading_engine[0m[2m:[0m Starting Zavora Trading Engine...
+[2m2025-03-02T06:54:01.619114Z[0m [32m INFO[0m [2mmatching_engine::engine[0m[2m:[0m Registering market: BTC/USD
+[2m2025-03-02T06:54:01.619181Z[0m [32m INFO[0m [2mtrading_engine[0m[2m:[0m Creating demo data...
+[2m2025-03-02T06:54:01.619208Z[0m [32m INFO[0m [2maccount_service::service[0m[2m:[0m Creating new account
+[2m2025-03-02T06:54:01.619305Z[0m [32m INFO[0m [2maccount_service::service[0m[2m:[0m Creating new account
+[2m2025-03-02T06:54:01.619337Z[0m [32m INFO[0m [2mtrading_engine[0m[2m:[0m Created demo accounts: Alice = 570481ba-152e-4dff-b762-c8ed3ba5ccd5, Bob = 30bdbaeb-a285-4260-89b8-ee34081cb9f4
+[2m2025-03-02T06:54:01.619380Z[0m [32m INFO[0m [2maccount_service::service[0m[2m:[0m Depositing 100000 USD to account 570481ba-152e-4dff-b762-c8ed3ba5ccd5
+[2m2025-03-02T06:54:01.619479Z[0m [32m INFO[0m [2maccount_service::service[0m[2m:[0m Depositing 10 BTC to account 570481ba-152e-4dff-b762-c8ed3ba5ccd5
+[2m2025-03-02T06:54:01.619607Z[0m [32m INFO[0m [2maccount_service::service[0m[2m:[0m Depositing 100000 USD to account 30bdbaeb-a285-4260-89b8-ee34081cb9f4
+[2m2025-03-02T06:54:01.619667Z[0m [32m INFO[0m [2maccount_service::service[0m[2m:[0m Depositing 10 BTC to account 30bdbaeb-a285-4260-89b8-ee34081cb9f4
+[2m2025-03-02T06:54:01.619711Z[0m [32m INFO[0m [2mtrading_engine[0m[2m:[0m Added funds to demo accounts
+[2m2025-03-02T06:54:01.620102Z[0m [32m INFO[0m [2maccount_service::service[0m[2m:[0m Successfully processed trade: c5bf9182-7a7c-4fd7-acdc-c23f021fa2d7
+[2m2025-03-02T06:54:01.620342Z[0m [32m INFO[0m [2mtrading_engine[0m[2m:[0m Generated 1 trades
+[2m2025-03-02T06:54:01.620482Z[0m [32m INFO[0m [2mtrading_engine[0m[2m:[0m Demo data created successfully
+[2m2025-03-02T06:54:01.622303Z[0m [32m INFO[0m [2mtrading_engine[0m[2m:[0m Starting API server on 0.0.0.0:8080
+[2m2025-03-02T07:01:00.685492Z[0m [31mERROR[0m [2mapi_gateway::error[0m[2m:[0m API Error [5d6c74ad-1104-4b58-9676-78768be33975]: NotFound("Account not found: 123e4567-e89b-12d3-a456-426614174000")
+[2m2025-03-02T09:06:31.463215Z[0m [32m INFO[0m [2mtrading_engine[0m[2m:[0m Shutdown signal received, starting graceful shutdown
+[2m2025-03-02T09:06:31.467465Z[0m [32m INFO[0m [2mtrading_engine[0m[2m:[0m Shutting down
