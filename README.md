@@ -168,6 +168,7 @@ The trading engine uses the following environment variables:
 - `TEST_DATABASE_URL`: PostgreSQL connection string for the test database
   - Example: `postgres://viabtc:viabtc@localhost:5434/viabtc_test`
 - `API_PORT`: Port for the API server (default: 8081)
+- `DEBUG`: Set to "1" to enable detailed request/response logging
 - `RUST_LOG`: Logging level (e.g., info, debug, trace)
 
 You can create a `.env` file in the project root for development:
@@ -178,6 +179,7 @@ cat > .env << EOF
 DATABASE_URL=postgres://viabtc:viabtc@localhost:5435/viabtc
 RUST_LOG=info,sqlx=warn
 API_PORT=8081
+DEBUG=0
 EOF
 
 # Create .env.test file for testing
@@ -385,6 +387,15 @@ For debugging, use either:
 2. Command line with `rust-gdb` or `rust-lldb`:
    ```bash
    rust-gdb target/debug/trading-engine
+   ```
+
+3. Enable detailed API request/response logging:
+   ```bash
+   # Set DEBUG=1 in your .env file or
+   DEBUG=1 cargo run -p trading-engine -- --demo
+   
+   # This will log detailed HTTP request/response information
+   # You'll see headers, bodies, timing information, and more
    ```
 
 ### Service Development

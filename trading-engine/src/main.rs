@@ -7,8 +7,8 @@ use common::model::market::Market;
 use dotenv::dotenv;
 use rust_decimal_macros::dec;
 use tokio::signal;
-use tracing::{info, Level};
-use tracing_subscriber::FmtSubscriber;
+use tracing::{info, debug, Level};
+use tracing_subscriber::{FmtSubscriber, EnvFilter, fmt::format::FmtSpan};
 use account_service::AccountService;
 use market_data::MarketDataService;
 use matching_engine::MatchingEngine;
@@ -30,14 +30,27 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Parse command line arguments
     let args = Args::parse();
     
-    // Initialize tracing
+    // Initialize tracing with debug level if DEBUG=1 in .env
+    let env_debug = std::env::var("DEBUG").unwrap_or_else(|_| "0".to_string());
+    let log_level = if env_debug == "1" { Level::DEBUG } else { Level::INFO };
+    
+    // Create an environment filter
+    let env_filter = EnvFilter::builder()
+        .with_default_directive(log_level.into())
+        .parse("tower_http=debug,api_gateway=debug,market_data=debug,matching_engine=debug,account_service=debug")
+        .unwrap();
+    
     let subscriber = FmtSubscriber::builder()
-        .with_max_level(Level::INFO)
+        .with_env_filter(env_filter)
+        .with_span_events(FmtSpan::NEW | FmtSpan::CLOSE)
         .finish();
     
     // Only set the global subscriber if it hasn't been set already
     if tracing::subscriber::set_global_default(subscriber).is_ok() {
         info!("Tracing initialized");
+        if env_debug == "1" {
+            debug!("Debug logging enabled");
+        }
     }
     
     info!("Starting Zavora Trading Engine...");
@@ -130,7 +143,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 .nest("/api/v1", api_routes)
                 .merge(ws_routes)
                 .layer(cors)
-                .layer(tower_http::trace::TraceLayer::new_for_http())
+                .layer(tower_http::trace::TraceLayer::new_for_http()
+                    .make_span_with(tower_http::trace::DefaultMakeSpan::new().level(log_level))
+                    .on_request(tower_http::trace::DefaultOnRequest::new().level(log_level))
+                    .on_response(tower_http::trace::DefaultOnResponse::new().level(log_level)))
                 .with_state(state);
             
             // Parse address to listen on
