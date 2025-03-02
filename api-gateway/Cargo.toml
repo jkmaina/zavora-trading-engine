@@ -12,7 +12,7 @@ market-data = { path = "../market-data", features = ["utoipa"] }
 serde = { workspace = true }
 serde_json = { workspace = true }
 tracing = { workspace = true }
-tracing-subscriber = { workspace = true }
+tracing-subscriber = { workspace = true, features = ["env-filter", "json"] }
 uuid = { workspace = true }
 chrono = { workspace = true }
 rust_decimal = { workspace = true }
@@ -20,7 +20,7 @@ rust_decimal_macros = { workspace = true }
 tokio = { workspace = true }
 thiserror = { workspace = true }
 tower = "0.4.13"
-tower-http = { version = "0.5.0", features = ["trace", "cors"] }
+tower-http = { version = "0.5.0", features = ["trace", "cors", "request-id"] }
 hyper = "1.1.0"
 futures = "0.3.30"
 clap = { workspace = true }

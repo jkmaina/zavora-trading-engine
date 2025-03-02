@@ -17,9 +17,11 @@ use dotenv::dotenv;
 use tokio::net::TcpListener;
 use tokio::signal;
 use tower_http::cors::{Any, CorsLayer};
-use tower_http::trace::TraceLayer;
-use tracing::{info, Level};
-use tracing_subscriber::FmtSubscriber;
+use tower_http::trace::{TraceLayer, DefaultMakeSpan, DefaultOnRequest, DefaultOnResponse};
+use tower_http::request_id::{MakeRequestId, RequestId};
+use tracing::{info, Level, debug, Span};
+use tracing_subscriber::{EnvFilter, FmtSubscriber, fmt::format::FmtSpan};
+use std::borrow::Cow;
 use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
 
@@ -131,12 +133,24 @@ async fn main() -> std::io::Result<()> {
     // Parse command line arguments
     let args = Args::parse();
     
-    // Initialize logging
+    // Initialize logging with debug level when DEBUG=1 env var is set
+    let env = std::env::var("DEBUG").unwrap_or_else(|_| "0".to_string());
+    let log_level = if env == "1" { Level::DEBUG } else { Level::INFO };
+    
+    let env_filter = EnvFilter::builder()
+        .with_default_directive(log_level.into())
+        .parse("tower_http=debug,api_gateway=debug")
+        .unwrap();
+    
     let subscriber = FmtSubscriber::builder()
-        .with_max_level(Level::INFO)
+        .with_env_filter(env_filter)
+        .with_span_events(FmtSpan::NEW | FmtSpan::CLOSE)
         .finish();
+        
     tracing::subscriber::set_global_default(subscriber)
         .expect("Failed to set tracing subscriber");
+        
+    debug!("Debug logging enabled");
     
     // Initialize services
     let _config = AppConfig::new();
@@ -210,7 +224,15 @@ async fn main() -> std::io::Result<()> {
         .merge(ws_routes)
         .merge(swagger_ui)
         .layer(cors)
-        .layer(TraceLayer::new_for_http())
+        .layer(
+            TraceLayer::new_for_http()
+                .make_span_with(
+                    DefaultMakeSpan::new()
+                        .level(log_level)
+                )
+                .on_request(DefaultOnRequest::new().level(log_level))
+                .on_response(DefaultOnResponse::new().level(log_level))
+        )
         .with_state(state);
     
     // Start the server
