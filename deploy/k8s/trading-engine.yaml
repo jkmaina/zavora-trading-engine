@@ -1,0 +1,48 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: trading-engine
+  namespace: zavora
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: trading-engine
+  template:
+    metadata:
+      labels:
+        app: trading-engine
+    spec:
+      containers:
+      - name: trading-engine
+        image: 971994957690.dkr.ecr.us-west-2.amazonaws.com/zavora/trading-engine:latest
+        ports:
+        - containerPort: 8081
+        env:
+        - name: DATABASE_URL
+          valueFrom:
+            secretKeyRef:
+              name: zavora-secrets
+              key: DATABASE_URL
+        - name: REDIS_URL
+          valueFrom:
+            secretKeyRef:
+              name: zavora-secrets
+              key: REDIS_URL
+        - name: API_PORT
+          value: "8081"
+        - name: DEBUG
+          value: "1"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: trading-engine
+  namespace: zavora
+spec:
+  selector:
+    app: trading-engine
+  ports:
+  - port: 80
+    targetPort: 8081
+  type: LoadBalancer 

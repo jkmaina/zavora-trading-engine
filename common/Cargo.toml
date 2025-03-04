@@ -1,0 +1,21 @@
+[package]
+name = "common"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+uuid = { workspace = true }
+chrono = { workspace = true }
+rust_decimal = { workspace = true }
+rust_decimal_macros = { workspace = true }
+tracing = { workspace = true }
+sqlx = { workspace = true }
+async-trait = "0.1.78"
+utoipa = { workspace = true, optional = true }
+
+[features]
+default = []
+utoipa = ["dep:utoipa"]

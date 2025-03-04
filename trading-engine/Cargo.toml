@@ -1,0 +1,29 @@
+[package]
+name = "trading-engine"
+version = "0.1.0"
+edition = "2021"
+authors = ["James Karanja Maina<james.karanja@zavora.ai>"]
+description = "Trading engine binary for Zavora Trading Platform"
+
+[dependencies]
+common = { path = "../common" }
+matching-engine = { path = "../matching-engine" }
+account-service = { path = "../account-service" }
+market-data = { path = "../market-data" }
+api-gateway = { path = "../api-gateway" }
+
+serde = { workspace = true }
+serde_json = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+uuid = { workspace = true }
+chrono = { workspace = true }
+rust_decimal = { workspace = true }
+rust_decimal_macros = { workspace = true }
+tokio = { workspace = true }
+thiserror = { workspace = true }
+clap = { workspace = true }
+dotenv = { workspace = true }
+async-trait = "0.1.77"
+axum = { workspace = true }
+tower-http = { version = "0.6.2", features = ["trace", "cors"] }

@@ -1,0 +1,33 @@
+[package]
+name = "account-service"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+common = { path = "../common" }
+serde = { workspace = true }
+serde_json = { workspace = true }
+tracing = { workspace = true }
+uuid = { workspace = true }
+chrono = { workspace = true }
+rust_decimal = { workspace = true }
+rust_decimal_macros = { workspace = true }
+tokio = { workspace = true, features = ["full"] }
+thiserror = { workspace = true }
+dashmap = "5.5.3"  # Concurrent HashMap for thread-safe access
+async-trait = "0.1.77"
+sqlx = { workspace = true, features = ["macros"] }
+futures = "0.3.30"
+dotenv = "0.15.0"
+tracing-subscriber = { version = "0.3.18", features = ["env-filter"] }
+clap = { version = "4.4.11", features = ["derive"] }
+
+[dev-dependencies]
+tokio-test = "0.4.3"
+anyhow = "1.0.79"
+mock_instant = "0.3.1"
+criterion = "0.5.1"
+
+[[bin]]
+name = "account-service"
+path = "src/bin/main.rs"

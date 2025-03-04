@@ -1,0 +1,55 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: matching-engine
+  namespace: zavora
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: matching-engine
+  template:
+    metadata:
+      labels:
+        app: matching-engine
+    spec:
+      containers:
+      - name: matching-engine
+        image: ${REGISTRY_URL}/zavora/matching-engine:${TAG}
+        env:
+        - name: DATABASE_URL
+          value: postgres://$(POSTGRES_USER):$(POSTGRES_PASSWORD)@postgres:5432/zavora
+        - name: REDIS_URL
+          value: redis://redis:6379
+        - name: RUST_LOG
+          value: info
+        - name: POSTGRES_USER
+          valueFrom:
+            secretKeyRef:
+              name: postgres-secret
+              key: username
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: postgres-secret
+              key: password
+        resources:
+          limits:
+            memory: 1Gi
+            cpu: 1000m
+          requests:
+            memory: 512Mi
+            cpu: 500m
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: matching-engine
+  namespace: zavora
+spec:
+  selector:
+    app: matching-engine
+  ports:
+  - port: 80
+    targetPort: 8080
+  type: ClusterIP

@@ -1,0 +1,32 @@
+[package]
+name = "api-gateway"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+common = { path = "../common", features = ["utoipa"] }
+matching-engine = { path = "../matching-engine" }
+account-service = { path = "../account-service" }
+market-data = { path = "../market-data", features = ["utoipa"] }
+
+serde = { workspace = true }
+serde_json = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true, features = ["env-filter", "json"] }
+uuid = { workspace = true }
+chrono = { workspace = true }
+rust_decimal = { workspace = true }
+rust_decimal_macros = { workspace = true }
+tokio = { workspace = true }
+thiserror = { workspace = true }
+tower = "0.4.13"
+tower-http = { version = "0.5.0", features = ["trace", "cors", "request-id"] }
+hyper = "1.1.0"
+futures = "0.3.30"
+clap = { workspace = true }
+dotenv = { workspace = true }
+async-trait = "0.1.77"
+axum = { workspace = true, features = ["ws"] }
+tokio-stream = { version = "0.1.14" }
+utoipa = { version = "4.1", features = ["axum_extras"] }
+utoipa-swagger-ui = { version = "5.0", features = ["axum"] }
