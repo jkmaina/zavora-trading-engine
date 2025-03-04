@@ -1,6 +1,8 @@
 //! Trading engine integration module
 
 use std::sync::Arc;
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::time::{SystemTime, UNIX_EPOCH, Instant};
 
 use clap::Parser;
 use common::model::market::Market;
@@ -12,6 +14,10 @@ use tracing_subscriber::{FmtSubscriber, EnvFilter, fmt::format::FmtSpan};
 use account_service::AccountService;
 use market_data::MarketDataService;
 use matching_engine::MatchingEngine;
+use uuid::Uuid;
+use axum::extract::State;
+use axum::response::IntoResponse;
+use axum::Json;
 
 /// Command line arguments
 #[derive(Parser, Debug)]
@@ -21,6 +27,9 @@ struct Args {
     #[clap(short, long)]
     demo: bool,
 }
+
+// Static variable to track service start time
+static START_TIME: AtomicU64 = AtomicU64::new(0);
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -54,6 +63,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
     
     info!("Starting Zavora Trading Engine...");
+    
+    // Initialize service start time for uptime tracking
+    let now = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_secs();
+    START_TIME.store(now, Ordering::Relaxed);
     
     // Initialize services
     let matching_engine = MatchingEngine::new();
@@ -169,8 +185,150 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 // Health check endpoint
-async fn health_check() -> impl axum::response::IntoResponse {
-    axum::http::StatusCode::OK
+async fn health_check(
+    State(state): State<Arc<api_gateway::AppState>>,
+) -> impl IntoResponse {
+    let start_time = Instant::now();
+    
+    // Initialize status for each service
+    let mut matching_engine_status = "unknown";
+    let mut account_service_status = "unknown";
+    let mut market_data_status = "unknown";
+    let mut matching_engine_latency = 0;
+    let mut account_service_latency = 0;
+    let mut market_data_latency = 0;
+    
+    // Check if matching engine is responsive
+    let me_start = Instant::now();
+    matching_engine_status = match state.matching_engine.get_market_depth("BTC/USD", 1) {
+        Ok(_) => "up",
+        Err(_) => "down",
+    };
+    matching_engine_latency = me_start.elapsed().as_millis() as u64;
+    
+    // Check if account service is responsive
+    let as_start = Instant::now();
+    account_service_status = match state.account_service.get_account(Uuid::nil()).await {
+        // Any response means the service is working, even NotFound for a nil UUID
+        Ok(_) => "up",
+        Err(common::error::Error::AccountNotFound(_)) => "up",
+        Err(_) => "down",
+    };
+    account_service_latency = as_start.elapsed().as_millis() as u64;
+    
+    // Check if market data service is responsive
+    let md_start = Instant::now();
+    market_data_status = if state.market_data_service.get_ticker("BTC/USD").is_some() ||
+                           state.market_data_service.get_all_tickers().len() > 0 {
+        "up"
+    } else {
+        "down"
+    };
+    market_data_latency = md_start.elapsed().as_millis() as u64;
+    
+    // Overall status depends on all services
+    let overall_status = if matching_engine_status == "up" && 
+                           account_service_status == "up" && 
+                           market_data_status == "up" {
+        "healthy"
+    } else {
+        "degraded"
+    };
+    
+    // Count available markets
+    let available_markets = state.markets.len();
+    let active_markets = state.markets.iter()
+        .filter(|m| m.trading_enabled)
+        .count();
+    
+    // Get system metrics
+    let memory_usage = get_memory_usage_mb();
+    let uptime = get_uptime_seconds();
+    
+    // Total response time for this health check
+    let total_latency = start_time.elapsed().as_millis() as u64;
+    
+    // Build the health information JSON
+    let health_info = serde_json::json!({
+        "status": overall_status,
+        "version": env!("CARGO_PKG_VERSION"),
+        "timestamp": chrono::Utc::now().to_rfc3339(),
+        "uptime_seconds": uptime,
+        "services": {
+            "matching_engine": {
+                "status": matching_engine_status,
+                "latency_ms": matching_engine_latency
+            },
+            "account_service": {
+                "status": account_service_status,
+                "latency_ms": account_service_latency
+            },
+            "market_data_service": {
+                "status": market_data_status,
+                "latency_ms": market_data_latency
+            }
+        },
+        "markets": {
+            "total": available_markets,
+            "active": active_markets
+        },
+        "system": {
+            "memory_usage_mb": memory_usage,
+        },
+        "health_check_latency_ms": total_latency
+    });
+    
+    if overall_status == "healthy" {
+        (axum::http::StatusCode::OK, Json(health_info))
+    } else {
+        (axum::http::StatusCode::SERVICE_UNAVAILABLE, Json(health_info))
+    }
+}
+
+// Helper function to get uptime in seconds
+fn get_uptime_seconds() -> u64 {
+    let current_start = START_TIME.load(Ordering::Relaxed);
+    if current_start == 0 {
+        // First call, initialize start time
+        let now = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_secs();
+        START_TIME.store(now, Ordering::Relaxed);
+        return 0;
+    }
+    
+    let now = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_secs();
+    
+    now.saturating_sub(current_start)
+}
+
+// Helper function to get memory usage in MB
+fn get_memory_usage_mb() -> u64 {
+    #[cfg(target_os = "linux")]
+    {
+        use std::fs::File;
+        use std::io::Read;
+        
+        if let Ok(mut file) = File::open("/proc/self/status") {
+            let mut contents = String::new();
+            if let Ok(_) = file.read_to_string(&mut contents) {
+                if let Some(line) = contents.lines().find(|l| l.starts_with("VmRSS:")) {
+                    if let Some(kb_str) = line.split_whitespace().nth(1) {
+                        if let Ok(kb) = kb_str.parse::<u64>() {
+                            return kb / 1024; // Convert KB to MB
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
+    // Default if we can't get the actual usage or not on Linux
+    0
 }
 
 /// Create demo data for testing
